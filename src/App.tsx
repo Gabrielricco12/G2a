@@ -1,32 +1,31 @@
-
 import { MantineProvider } from '@mantine/core';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
 // Contextos e Proteção
-import { AuthProvider } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AuthProvider } from './contexts/AuthContext';
 
 // Estilos Globais
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 
 // Páginas de Autenticação
+import { ForgotPassword } from './pages/auth/ForgotPassword';
 import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
-import { ForgotPassword } from './pages/auth/ForgotPassword';
 
 // Páginas do Sistema Principal
-import { CompanySelection } from './pages/portal/CompanySelection';
 import { AppLayout } from './components/Layout/AppLayout';
 import { Dashboard } from './pages/app/Dashboard';
+import { CompanySelection } from './pages/portal/CompanySelection';
 
 // Módulo de Pacientes
-import { PatientsPage } from './pages/app/patients'; // Carrega o index.tsx
-import { PatientProfile } from './pages/app/patients/PatientProfile'; // Nova página de Detalhes
-import { ExamHub } from './pages/app/exams/Examhub';
+import { ExamHub } from './pages/app/exams/ExamHub';
 import { NewExam } from './pages/app/exams/NewExam';
+import { PatientsPage } from './pages/app/Patients'; // Carrega o index.tsx
+import { PatientProfile } from './pages/app/patients/PatientProfile'; // Nova página de Detalhes
 // Configuração do React Query
 const queryClient = new QueryClient();
 

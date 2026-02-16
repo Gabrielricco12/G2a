@@ -26,7 +26,6 @@ import {
 } from '@tabler/icons-react';
 
 export function Dashboard() {
-  // 1. Dados dos Cards de Resumo
   const stats = [
     { title: 'Total de Vidas', value: '1.248', diff: 12, icon: IconUsers, color: 'blue' },
     { title: 'Exames (Mês)', value: '84', diff: 5, icon: IconActivity, color: 'teal' },
@@ -34,7 +33,6 @@ export function Dashboard() {
     { title: 'Pendentes Laudo', value: '07', diff: 0, icon: IconClipboardHeart, color: 'orange' },
   ];
 
-  // 2. Dados de Atividade Recente (Exames feitos recentemente)
   const recentExams = [
     { id: 1, name: 'Gabriel Ricco', type: 'Admissional', status: 'Normal', time: '10:30' },
     { id: 2, name: 'Ana Oliveira', type: 'Periódico', status: 'Alterado', time: '09:15' },
@@ -43,7 +41,6 @@ export function Dashboard() {
 
   return (
     <div className="space-y-8 animate-fade-in pb-10">
-      {/* SEÇÃO: BOAS-VINDAS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <Stack gap={4}>
           <Title order={1} className="text-slate-800 tracking-tight">Painel Operacional</Title>
@@ -57,7 +54,6 @@ export function Dashboard() {
         </Group>
       </div>
 
-      {/* SEÇÃO: CARDS DE ESTATÍSTICAS */}
       <Grid gutter="lg">
         {stats.map((stat) => (
           <Grid.Col key={stat.title} span={{ base: 12, sm: 6, lg: 3 }}>
@@ -72,7 +68,7 @@ export function Dashboard() {
               </Group>
               
               <div className="mt-4">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={800} tracking="wider">{stat.title}</Text>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={800}>{stat.title}</Text>
                 <Text size="2rem" fw={900} className="text-slate-800">{stat.value}</Text>
               </div>
             </Paper>
@@ -80,9 +76,7 @@ export function Dashboard() {
         ))}
       </Grid>
 
-      {/* SEÇÃO: GRÁFICO E FILA DE HOJE */}
       <Grid gutter="xl">
-        {/* Coluna 1: Status de Atendimento (Visual) */}
         <Grid.Col span={{ base: 12, lg: 8 }}>
           <Paper p="xl" radius="2rem" withBorder className="h-full bg-white/40">
             <Group justify="space-between" mb="xl">
@@ -131,7 +125,6 @@ export function Dashboard() {
           </Paper>
         </Grid.Col>
 
-        {/* Coluna 2: Atividade Recente */}
         <Grid.Col span={{ base: 12, lg: 4 }}>
           <Paper p="xl" radius="2rem" withBorder className="h-full">
             <Title order={4} mb="lg">Últimos Atendimentos</Title>
@@ -162,7 +155,6 @@ export function Dashboard() {
         </Grid.Col>
       </Grid>
 
-      {/* SEÇÃO: TABELA DE FILA (PREVIEW) */}
       <Paper p="xl" radius="2rem" withBorder>
         <Group justify="space-between" mb="xl">
           <div>
@@ -197,21 +189,6 @@ export function Dashboard() {
                 <Button size="compact-xs" variant="light" color="blue" leftSection={<IconPlayerPlay size={12}/>}>
                   Atender
                 </Button>
-              </Table.Td>
-            </Table.Tr>
-            {/* Linha 2 */}
-            <Table.Tr>
-              <Table.Td>
-                <Group gap="sm">
-                  <Avatar radius="xl" size="sm" color="blue" src={null} />
-                  <Text size="sm" fw={600}>Juliana Costa</Text>
-                </Group>
-              </Table.Td>
-              <Table.Td><Text size="sm">14:30</Text></Table.Td>
-              <Table.Td><Badge variant="outline">Audiometria Ocupacional</Badge></Table.Td>
-              <Table.Td><Badge color="gray">Agendado</Badge></Table.Td>
-              <Table.Td>
-                <ActionIcon variant="subtle" color="gray"><IconFileDescription size={16}/></ActionIcon>
               </Table.Td>
             </Table.Tr>
           </Table.Tbody>

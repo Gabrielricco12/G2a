@@ -13,8 +13,7 @@ import {
   Grid, 
   LoadingOverlay, 
   ThemeIcon,
-  Divider,
-  Container
+  Divider
 } from '@mantine/core';
 import { 
   IconArrowLeft, 
@@ -25,7 +24,7 @@ import {
   IconSend, 
   IconClock, 
   IconUser,
-  IconBuildingFactory,
+  IconBuildingFactory, 
   IconBriefcase
 } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -73,8 +72,7 @@ export function PatientProfile() {
       if (pError) throw pError;
       setPatient(pData);
 
-      // B. Busca Evoluções Clínicas (Join com Profiles para pegar o nome do Fono)
-      // Nota: Usamos 'profiles:professional_id' para explicitar a relação
+      // B. Busca Evoluções Clínicas
       const { data: eData, error: eError } = await supabase
         .from('clinical_evolutions')
         .select(`
@@ -86,7 +84,6 @@ export function PatientProfile() {
 
       if (eError) {
         console.warn('Aviso: Não foi possível carregar evoluções.', eError);
-        // Não lançamos erro aqui para permitir visualizar o paciente mesmo sem evoluções
       } else {
         setEvolutions(eData || []);
       }
@@ -96,8 +93,6 @@ export function PatientProfile() {
       toast.error('Falha ao carregar dados do paciente', {
         description: 'Verifique o console para mais detalhes.'
       });
-      // Importante: Removi o redirecionamento automático para você poder debugar
-      // navigate(`/app/${companyId}/pacientes`); 
     } finally {
       setLoading(false);
     }
@@ -115,7 +110,7 @@ export function PatientProfile() {
       const { error } = await supabase.from('clinical_evolutions').insert([
         {
           employee_id: patientId,
-          professional_id: user?.id, // ID do usuário logado
+          professional_id: user?.id,
           content: newEvolution
         }
       ]);
@@ -124,7 +119,7 @@ export function PatientProfile() {
       
       toast.success('Evolução registrada com sucesso');
       setNewEvolution('');
-      fetchData(); // Recarrega a lista para mostrar a nova
+      fetchData(); 
     } catch (err: any) {
       toast.error('Erro ao salvar evolução', { description: err.message });
     } finally {
@@ -192,16 +187,20 @@ export function PatientProfile() {
               <Title order={2} className="text-white text-3xl font-bold tracking-tight mb-1">
                 {patient.full_name}
               </Title>
-              <Group justify="center" lg="start" gap="xs" className="text-blue-100/90">
-                <IconId size={18} />
-                <Text size="md" fw={500}>{patient.cpf}</Text>
-                <Divider orientation="vertical" color="white" className="opacity-30 h-4 mx-2" />
-                <Text size="md">{dayjs().diff(patient.birth_date, 'year')} anos</Text>
+              {/* CORREÇÃO AQUI: Sintaxe de responsividade do Group */}
+              <Group justify="center" gap="xs" className="text-blue-100/90" style={{ justifyContent: 'var(--justify)' }}>
+                 {/* Hack visual inline para garantir compatibilidade ou usar classes utilitárias */}
+                 <div className="flex flex-wrap justify-center lg:justify-start gap-3 items-center">
+                    <IconId size={18} />
+                    <Text size="md" fw={500}>{patient.cpf}</Text>
+                    <Divider orientation="vertical" color="white" className="opacity-30 h-4 mx-2 hidden sm:block" />
+                    <Text size="md">{dayjs().diff(patient.birth_date, 'year')} anos</Text>
+                 </div>
               </Group>
             </div>
 
-            {/* Chips de Informação */}
-            <Group justify="center" lg="start" gap="md">
+            {/* Chips de Informação - CORREÇÃO DE RESPONSIVIDADE */}
+            <div className="flex flex-wrap justify-center lg:justify-start gap-4">
               <div className="bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm border border-white/20 min-w-[120px]">
                 <Group gap={6} mb={2} className="opacity-80">
                   <IconBuildingFactory size={14} />
@@ -225,7 +224,7 @@ export function PatientProfile() {
                 </Group>
                 <Text size="sm" fw={600} className="truncate">{patient.ghe?.name || 'Padrão'}</Text>
               </div>
-            </Group>
+            </div>
           </div>
 
           {/* Botões de Ação */}
@@ -238,9 +237,9 @@ export function PatientProfile() {
                size="md"
                leftSection={<IconEar size={20} />}
                className="shadow-xl hover:scale-105 transition-transform font-bold text-blue-700"
-               // onClick={() => navigate('audiometria/nova')} // Futuro
+               onClick={() => navigate(`/app/${companyId}/exames`)} // Redireciona para o Hub
              >
-               Nova Audiometria
+               Ir para Hub de Exames
              </Button>
              <Button 
                fullWidth 

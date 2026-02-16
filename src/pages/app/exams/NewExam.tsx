@@ -1,8 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  Title, Paper, Grid, Button, Group, SegmentedControl, 
-  Text, TextInput, LoadingOverlay, Badge, Avatar, ActionIcon,
-  Tooltip, ThemeIcon // <--- ADDED HERE
+  Title, 
+  Paper, 
+  Grid, 
+  Button, 
+  Group, 
+  SegmentedControl, 
+  Text, 
+  TextInput, 
+  LoadingOverlay, 
+  Badge, 
+  Avatar, 
+  ActionIcon,
+  Tooltip,
+  ThemeIcon // <--- CORREÇÃO: ADICIONADO AQUI
 } from '@mantine/core';
 import { 
   IconDeviceFloppy, 
@@ -17,31 +28,31 @@ import { supabase } from '../../../lib/supabase';
 import dayjs from 'dayjs';
 
 export function NewExam() {
-  const { companyId, examId } = useParams();
+  const { examId } = useParams(); // Removi companyId pois estava sem uso
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // Exam and Patient Data
+  // Dados do Exame
   const [examData, setExamData] = useState<any>(null);
 
-  // --- THRESHOLDS STATE ---
+  // --- ESTADOS DOS GRÁFICOS (THRESHOLDS) ---
   const [odAir, setOdAir] = useState<Record<string, number>>({});
   const [oeAir, setOeAir] = useState<Record<string, number>>({});
   const [odBone, setOdBone] = useState<Record<string, number>>({});
   const [oeBone, setOeBone] = useState<Record<string, number>>({});
 
-  // Conductive Mode (Interface)
-  const [modeOD, setModeOD] = useState('air'); // 'air' | 'bone'
-  const [modeOE, setModeOE] = useState('air'); // 'air' | 'bone'
+  // Controle de Via
+  const [modeOD, setModeOD] = useState('air'); 
+  const [modeOE, setModeOE] = useState('air'); 
 
-  // --- SPEECH AUDIOMETRY ---
+  // --- LOGOAUDIOMETRIA ---
   const [logo, setLogo] = useState({
     srt_od: '', srt_oe: '',
     iprf_od: '', iprf_oe: ''
   });
 
-  // 1. LOAD INITIAL DATA
+  // 1. CARREGAR DADOS
   useEffect(() => {
     const fetchExam = async () => {
       if (!examId) return;
@@ -59,7 +70,7 @@ export function NewExam() {
         if (error) throw error;
         setExamData(data);
 
-        // Populate state if data exists (Recovery)
+        // Popula estados se existir dados salvos
         if (data.thresholds_od_air) setOdAir(data.thresholds_od_air);
         if (data.thresholds_oe_air) setOeAir(data.thresholds_oe_air);
         if (data.thresholds_od_bone) setOdBone(data.thresholds_od_bone);
@@ -73,7 +84,7 @@ export function NewExam() {
         });
 
       } catch (err) {
-        toast.error('Error loading exam');
+        toast.error('Erro ao carregar exame');
         navigate(-1);
       } finally {
         setLoading(false);
@@ -82,9 +93,8 @@ export function NewExam() {
     fetchExam();
   }, [examId]);
 
-  // 2. PLOT ON GRAPH
+  // 2. PLOTAGEM
   const handlePlot = (ear: 'right' | 'left', freq: number, db: number) => {
-    // Determine which state to update based on ear and current mode
     if (ear === 'right') {
       if (modeOD === 'air') setOdAir(prev => ({ ...prev, [freq]: db }));
       else setOdBone(prev => ({ ...prev, [freq]: db }));
@@ -94,12 +104,11 @@ export function NewExam() {
     }
   };
 
-  // Helper: Convert Object to Array [{freq, db}] for graph component
   const toPoints = (data: Record<string, number>) => {
     return Object.entries(data).map(([freq, db]) => ({ freq: Number(freq), db }));
   };
 
-  // 3. CALCULATE AVERAGES (Tritonal: 500, 1k, 2k)
+  // 3. CÁLCULO DE MÉDIAS
   const calculateAverage = (data: Record<string, number>) => {
     const v500 = data['500'];
     const v1000 = data['1000'];
@@ -108,16 +117,15 @@ export function NewExam() {
     return Math.round((v500 + v1000 + v2000) / 3);
   };
 
-  // 4. SAVE TO SUPABASE
+  // 4. SALVAR
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Simple Diagnosis Logic (Automatic Suggestion)
       const avgOD = calculateAverage(odAir);
       const avgOE = calculateAverage(oeAir);
       let status = 'normal';
       if ((avgOD !== '-' && Number(avgOD) > 25) || (avgOE !== '-' && Number(avgOE) > 25)) {
-        status = 'alterado'; // Simplified status
+        status = 'alterado'; 
       }
 
       const { error } = await supabase
@@ -137,10 +145,10 @@ export function NewExam() {
 
       if (error) throw error;
 
-      toast.success('Exam saved successfully!');
-      navigate(-1); // Return to Hub
+      toast.success('Exame salvo com sucesso!');
+      navigate(-1);
     } catch (err) {
-      toast.error('Error saving');
+      toast.error('Erro ao salvar');
     } finally {
       setSaving(false);
     }
@@ -151,7 +159,7 @@ export function NewExam() {
   return (
     <div className="w-full space-y-6 animate-fade-in pb-20">
       
-      {/* FIXED EXAM HEADER */}
+      {/* HEADER FIXO DO EXAME */}
       <div className="sticky top-2 z-50 bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-lg border border-slate-200 flex justify-between items-center">
         <Group>
           <ActionIcon variant="light" color="gray" size="lg" radius="xl" onClick={() => navigate(-1)}>
@@ -163,14 +171,14 @@ export function NewExam() {
             <div>
                <Text fw={700} size="sm" className="leading-tight">{examData?.employee?.full_name}</Text>
                <Text size="xs" c="dimmed">
-                 {dayjs().diff(examData?.employee?.birth_date, 'year')} years • {examData?.employee?.cpf}
+                 {dayjs().diff(examData?.employee?.birth_date, 'year')} anos • {examData?.employee?.cpf}
                </Text>
             </div>
           </Group>
         </Group>
 
         <Group>
-          <Badge variant="dot" color="gray" size="lg">In Progress</Badge>
+          <Badge variant="dot" color="gray" size="lg">Em andamento</Badge>
           <Button 
             leftSection={<IconDeviceFloppy size={18} />} 
             radius="xl" 
@@ -179,23 +187,22 @@ export function NewExam() {
             onClick={handleSave}
             className="shadow-md"
           >
-            Save Exam
+            Salvar Exame
           </Button>
         </Group>
       </div>
 
       <Grid gutter="xl">
         
-        {/* === LEFT COLUMN: RIGHT EAR (RED) === */}
+        {/* === COLUNA ESQUERDA: ORELHA DIREITA (VERMELHA) === */}
         <Grid.Col span={{ base: 12, xl: 6 }}>
           <Paper p="md" radius="xl" className="border border-red-100 bg-red-50/20 relative overflow-hidden">
-            {/* Ear Header */}
             <div className="flex justify-between items-center mb-4">
               <Group gap="xs">
                 <ThemeIcon color="red" variant="light" size="lg" radius="md"><IconEar size={20}/></ThemeIcon>
                 <div>
                    <Text fw={800} c="red" size="lg">Orelha Direita</Text>
-                   <Text size="xs" c="red.6">Tritonal Avg: <b>{calculateAverage(odAir)} dB</b></Text>
+                   <Text size="xs" c="red.6">Média Tritonal: <b>{calculateAverage(odAir)} dB</b></Text>
                 </div>
               </Group>
               
@@ -204,15 +211,14 @@ export function NewExam() {
                 radius="xl"
                 color="red"
                 data={[
-                  { label: 'Air', value: 'air' },
-                  { label: 'Bone', value: 'bone' }
+                  { label: 'Via Aérea', value: 'air' },
+                  { label: 'Via Óssea', value: 'bone' }
                 ]} 
                 value={modeOD}
                 onChange={setModeOD}
               />
             </div>
 
-            {/* THE GRAPH (REUSABLE) */}
             <div className="bg-white rounded-2xl p-2 shadow-sm border border-red-100/50 flex justify-center">
               <AudiogramGraph 
                 ear="right" 
@@ -222,24 +228,22 @@ export function NewExam() {
               />
             </div>
             
-            {/* Quick Masking Input (Optional) */}
             <Group mt="md" justify="center">
-               <Text size="xs" c="dimmed">Masking:</Text>
+               <Text size="xs" c="dimmed">Mascaramento:</Text>
                <TextInput placeholder="dB" size="xs" w={60} radius="md" />
             </Group>
           </Paper>
         </Grid.Col>
 
-        {/* === RIGHT COLUMN: LEFT EAR (BLUE) === */}
+        {/* === COLUNA DIREITA: ORELHA ESQUERDA (AZUL) === */}
         <Grid.Col span={{ base: 12, xl: 6 }}>
           <Paper p="md" radius="xl" className="border border-blue-100 bg-blue-50/20 relative overflow-hidden">
-             {/* Ear Header */}
              <div className="flex justify-between items-center mb-4">
               <Group gap="xs">
                 <ThemeIcon color="blue" variant="light" size="lg" radius="md"><IconEar size={20}/></ThemeIcon>
                 <div>
                    <Text fw={800} c="blue" size="lg">Orelha Esquerda</Text>
-                   <Text size="xs" c="blue.6">Tritonal Avg: <b>{calculateAverage(oeAir)} dB</b></Text>
+                   <Text size="xs" c="blue.6">Média Tritonal: <b>{calculateAverage(oeAir)} dB</b></Text>
                 </div>
               </Group>
               
@@ -248,15 +252,14 @@ export function NewExam() {
                 radius="xl"
                 color="blue"
                 data={[
-                  { label: 'Air', value: 'air' },
-                  { label: 'Bone', value: 'bone' }
+                  { label: 'Via Aérea', value: 'air' },
+                  { label: 'Via Óssea', value: 'bone' }
                 ]} 
                 value={modeOE}
                 onChange={setModeOE}
               />
             </div>
 
-            {/* THE GRAPH */}
             <div className="bg-white rounded-2xl p-2 shadow-sm border border-blue-100/50 flex justify-center">
               <AudiogramGraph 
                 ear="left" 
@@ -267,23 +270,23 @@ export function NewExam() {
             </div>
 
              <Group mt="md" justify="center">
-               <Text size="xs" c="dimmed">Masking:</Text>
+               <Text size="xs" c="dimmed">Mascaramento:</Text>
                <TextInput placeholder="dB" size="xs" w={60} radius="md" />
             </Group>
           </Paper>
         </Grid.Col>
       </Grid>
 
-      {/* --- SPEECH AUDIOMETRY SECTION --- */}
+      {/* --- SEÇÃO DE LOGOAUDIOMETRIA --- */}
       <Paper p="xl" radius="xl" className="bg-white border border-slate-200 shadow-sm mt-6">
         <Group mb="lg">
            <ThemeIcon size="lg" radius="md" color="gray" variant="light"><IconCalculator size={20}/></ThemeIcon>
-           <Title order={4} className="text-slate-700">Speech Audiometry (SRT / WRS)</Title>
+           <Title order={4} className="text-slate-700">Logoaudiometria (SRT / IPRF)</Title>
         </Group>
         
         <Grid gutter="xl">
           <Grid.Col span={{ base: 12, sm: 6 }}>
-            <Text fw={700} c="red" mb="sm" tt="uppercase" size="xs">Right Ear</Text>
+            <Text fw={700} c="red" mb="sm" tt="uppercase" size="xs">Orelha Direita</Text>
             <Group grow>
               <TextInput 
                 label="SRT" 
@@ -294,7 +297,7 @@ export function NewExam() {
                 onChange={(e) => setLogo({...logo, srt_od: e.target.value})}
               />
               <TextInput 
-                label="WRS (Discrim)" 
+                label="IPRF" 
                 rightSection="%" 
                 radius="md"
                 placeholder="Ex: 100" 
@@ -305,7 +308,7 @@ export function NewExam() {
           </Grid.Col>
 
           <Grid.Col span={{ base: 12, sm: 6 }}>
-            <Text fw={700} c="blue" mb="sm" tt="uppercase" size="xs">Left Ear</Text>
+            <Text fw={700} c="blue" mb="sm" tt="uppercase" size="xs">Orelha Esquerda</Text>
             <Group grow>
               <TextInput 
                 label="SRT" 
@@ -316,7 +319,7 @@ export function NewExam() {
                 onChange={(e) => setLogo({...logo, srt_oe: e.target.value})}
               />
               <TextInput 
-                label="WRS (Discrim)" 
+                label="IPRF" 
                 rightSection="%" 
                 radius="md"
                 placeholder="Ex: 100" 

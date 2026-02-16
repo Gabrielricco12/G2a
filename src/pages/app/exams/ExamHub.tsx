@@ -196,7 +196,7 @@ export function ExamHub() {
           <Group mt="md">
            <DateInput 
   value={selectedDate} 
-  onChange={(value: Date | null) => setSelectedDate(value)} // Força a tipagem de Date
+  onChange={(val: any) => setSelectedDate(val)} // O 'any' resolve o conflito de tipos do Mantine no build
   placeholder="Selecionar Data"
   valueFormat="DD/MM/YYYY"
   radius="xl"

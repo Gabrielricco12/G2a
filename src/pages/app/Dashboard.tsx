@@ -1,202 +1,219 @@
-import React from 'react';
 import { 
-  SimpleGrid, 
-  Paper, 
+  Title, 
   Text, 
+  Grid, 
+  Paper, 
   Group, 
-  RingProgress, 
   ThemeIcon, 
-  Table, 
+  Stack, 
   Badge, 
-  Button, 
-  Avatar,
-  Title
+  Table, 
+  Avatar, 
+  Progress,
+  Divider,
+  Button,
+  ActionIcon
 } from '@mantine/core';
 import { 
-  IconAlertTriangle, 
-  IconCalendarTime, 
-  IconActivity, 
   IconUsers, 
-  IconArrowRight, 
-  IconEar
+  IconActivity, 
+  IconCalendarStats, 
+  IconClipboardHeart,
+  IconArrowUpRight,
+  IconDotsVertical,
+  IconPlayerPlay,
+  IconFileDescription
 } from '@tabler/icons-react';
-import { DonutChart, BarChart } from '@mantine/charts';
-import { useNavigate } from 'react-router-dom';
-
-// --- DADOS MOCKADOS (SIMULAÇÃO) ---
-const stats = [
-  { label: 'Exames Vencidos', value: '12', color: 'red', icon: IconAlertTriangle, diff: '+2 essa semana' },
-  { label: 'Vencem em 30 dias', value: '34', color: 'yellow', icon: IconCalendarTime, diff: 'Atenção necessária' },
-  { label: 'Casos PAINPSE', value: '8', color: 'blue', icon: IconEar, diff: '1 novo caso' },
-  { label: 'Vidas Ativas', value: '156', color: 'teal', icon: IconUsers, diff: 'Total na empresa' },
-];
-
-const diagnosticData = [
-  { name: 'Normal', value: 120, color: 'teal.6' },
-  { name: 'PAINPSE', value: 8, color: 'blue.6' },
-  { name: 'Não Ocupacional', value: 15, color: 'gray.5' },
-  { name: 'Condutiva', value: 13, color: 'orange.6' },
-];
-
-const sectorData = [
-  { sector: 'Produção', Alterados: 25, Normais: 40 },
-  { sector: 'Caldeiraria', Alterados: 10, Normais: 5 },
-  { sector: 'Adm.', Alterados: 2, Normais: 50 },
-  { sector: 'Logística', Alterados: 5, Normais: 20 },
-];
-
-const expiringEmployees = [
-  { id: 1, name: 'João Silva', sector: 'Caldeiraria', date: '15/05/2026', status: 'Vencido' },
-  { id: 2, name: 'Maria Souza', sector: 'Produção', date: '20/05/2026', status: 'Vencido' },
-  { id: 3, name: 'Carlos Alberto', sector: 'Logística', date: '01/06/2026', status: 'A Vencer' },
-  { id: 4, name: 'Ana Pereira', sector: 'Adm.', date: '05/06/2026', status: 'A Vencer' },
-];
 
 export function Dashboard() {
-  const navigate = useNavigate();
+  // 1. Dados dos Cards de Resumo
+  const stats = [
+    { title: 'Total de Vidas', value: '1.248', diff: 12, icon: IconUsers, color: 'blue' },
+    { title: 'Exames (Mês)', value: '84', diff: 5, icon: IconActivity, color: 'teal' },
+    { title: 'Agendados Hoje', value: '12', diff: -2, icon: IconCalendarStats, color: 'indigo' },
+    { title: 'Pendentes Laudo', value: '07', diff: 0, icon: IconClipboardHeart, color: 'orange' },
+  ];
+
+  // 2. Dados de Atividade Recente (Exames feitos recentemente)
+  const recentExams = [
+    { id: 1, name: 'Gabriel Ricco', type: 'Admissional', status: 'Normal', time: '10:30' },
+    { id: 2, name: 'Ana Oliveira', type: 'Periódico', status: 'Alterado', time: '09:15' },
+    { id: 3, name: 'Marcos Souza', type: 'Demissional', status: 'Normal', time: '08:45' },
+  ];
 
   return (
-    <div className="w-full space-y-8 animate-fade-in">
-      
-      {/* 1. CABEÇALHO DA PÁGINA */}
-      <div className="flex flex-col sm:flex-row justify-between items-end gap-4">
-        <div>
-          <Title order={2} className="text-slate-800">Visão Geral</Title>
-          <Text c="dimmed">Acompanhamento em tempo real do PCMSO</Text>
-        </div>
-        <div className="flex gap-2">
-           <Text size="sm" c="dimmed" className="self-center">Última atualização: Hoje, 14:30</Text>
-        </div>
-      </div>
-
-      {/* 2. CARDS DE KPI (TOP LAYER) */}
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="lg">
-        {stats.map((stat) => (
-          <Paper 
-            key={stat.label} 
-            p="md" 
-            radius="xl" 
-            className="backdrop-blur-xl bg-white/60 border border-white/60 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <Group justify="space-between">
-              <div>
-                <Text c="dimmed" size="xs" tt="uppercase" fw={700}>
-                  {stat.label}
-                </Text>
-                <Text fw={700} size="xl" className="text-slate-800 text-3xl mt-1">
-                  {stat.value}
-                </Text>
-              </div>
-              <ThemeIcon 
-                color={stat.color} 
-                variant="light" 
-                size={48} 
-                radius="md"
-                className="opacity-80"
-              >
-                <stat.icon style={{ width: '60%', height: '60%' }} stroke={1.5} />
-              </ThemeIcon>
-            </Group>
-            <Text c="dimmed" size="xs" mt="sm">
-              <span className={`font-medium ${stat.color === 'red' ? 'text-red-600' : 'text-slate-500'}`}>
-                {stat.diff}
-              </span>
-            </Text>
-          </Paper>
-        ))}
-      </SimpleGrid>
-
-      {/* 3. GRÁFICOS (MIDDLE LAYER) */}
-      <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
+    <div className="space-y-8 animate-fade-in pb-10">
+      {/* SEÇÃO: BOAS-VINDAS */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <Stack gap={4}>
+          <Title order={1} className="text-slate-800 tracking-tight">Painel Operacional</Title>
+          <Text c="dimmed" size="lg">Resumo das atividades da G2A Health para hoje.</Text>
+        </Stack>
         
-        {/* Gráfico de Diagnósticos (Donut) */}
-        <Paper p="xl" radius="xl" className="backdrop-blur-xl bg-white/60 border border-white/60 shadow-sm flex flex-col items-center justify-center">
-          <Title order={4} className="self-start mb-6 text-slate-700">Distribuição Diagnóstica</Title>
-          <div className="flex items-center gap-8">
-            <DonutChart 
-              data={diagnosticData} 
-              size={180} 
-              thickness={20} 
-              withLabelsLine 
-              paddingAngle={5}
-              tooltipDataSource="segment"
-            />
-            <div className="flex flex-col gap-2">
-               {diagnosticData.map((item) => (
-                 <div key={item.name} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `var(--mantine-color-${item.color.split('.')[0]}-${item.color.split('.')[1] || 6})` }}></div>
-                    <Text size="sm" c="dimmed">{item.name}</Text>
-                 </div>
-               ))}
-            </div>
-          </div>
-        </Paper>
-
-        {/* Gráfico de Setores (Barras) */}
-        <Paper p="xl" radius="xl" className="backdrop-blur-xl bg-white/60 border border-white/60 shadow-sm">
-          <Title order={4} className="mb-6 text-slate-700">Alterações Auditivas por Setor</Title>
-          <BarChart
-            h={250}
-            data={sectorData}
-            dataKey="sector"
-            series={[
-              { name: 'Normais', color: 'teal.6' },
-              { name: 'Alterados', color: 'red.5' },
-            ]}
-            tickLine="y"
-          />
-        </Paper>
-      </SimpleGrid>
-
-      {/* 4. TABELA DE AÇÃO RÁPIDA (BOTTOM LAYER) */}
-      <Paper p="xl" radius="xl" className="backdrop-blur-xl bg-white/60 border border-white/60 shadow-sm overflow-hidden">
-        <Group justify="space-between" mb="lg">
-          <Title order={4} className="text-slate-700">Radar de Vencimentos (Urgente)</Title>
-          <Button variant="subtle" size="xs" rightSection={<IconArrowRight size={14} />}>
-            Ver Todos
+        <Group>
+          <Button variant="light" color="blue" radius="xl" leftSection={<IconCalendarStats size={18}/>}>
+            Ver Agenda Completa
           </Button>
         </Group>
+      </div>
 
-        <Table verticalSpacing="sm" highlightOnHover>
+      {/* SEÇÃO: CARDS DE ESTATÍSTICAS */}
+      <Grid gutter="lg">
+        {stats.map((stat) => (
+          <Grid.Col key={stat.title} span={{ base: 12, sm: 6, lg: 3 }}>
+            <Paper p="xl" radius="2rem" withBorder className="bg-white/50 backdrop-blur-sm shadow-sm hover:shadow-md transition-all">
+              <Group justify="space-between">
+                <ThemeIcon size="xl" radius="lg" variant="light" color={stat.color}>
+                  <stat.icon size={24} />
+                </ThemeIcon>
+                <Badge color={stat.diff >= 0 ? 'teal' : 'red'} variant="light" radius="sm">
+                  {stat.diff > 0 ? `+${stat.diff}%` : `${stat.diff}%`}
+                </Badge>
+              </Group>
+              
+              <div className="mt-4">
+                <Text size="xs" c="dimmed" tt="uppercase" fw={800} tracking="wider">{stat.title}</Text>
+                <Text size="2rem" fw={900} className="text-slate-800">{stat.value}</Text>
+              </div>
+            </Paper>
+          </Grid.Col>
+        ))}
+      </Grid>
+
+      {/* SEÇÃO: GRÁFICO E FILA DE HOJE */}
+      <Grid gutter="xl">
+        {/* Coluna 1: Status de Atendimento (Visual) */}
+        <Grid.Col span={{ base: 12, lg: 8 }}>
+          <Paper p="xl" radius="2rem" withBorder className="h-full bg-white/40">
+            <Group justify="space-between" mb="xl">
+              <Title order={4}>Meta de Atendimento do Dia</Title>
+              <Text size="sm" c="dimmed" fw={500}>75% Concluído</Text>
+            </Group>
+            
+            <Stack gap="xl">
+              <div>
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={600}>Exames Periódicos</Text>
+                  <Text size="xs" c="dimmed">09/12 realizados</Text>
+                </Group>
+                <Progress value={75} size="xl" radius="xl" color="blue" animated />
+              </div>
+
+              <div>
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={600}>Exames Admissionais</Text>
+                  <Text size="xs" c="dimmed">04/05 realizados</Text>
+                </Group>
+                <Progress value={80} size="xl" radius="xl" color="teal" />
+              </div>
+
+              <Divider label="Resumo Semanal" labelPosition="center" my="lg" />
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="text-center">
+                  <Text size="xl" fw={800}>42</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase">Esta Semana</Text>
+                </div>
+                <div className="text-center border-l border-slate-100">
+                  <Text size="xl" fw={800} c="teal">98%</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase">Eficiência</Text>
+                </div>
+                <div className="text-center border-l border-slate-100">
+                  <Text size="xl" fw={800} c="orange">02</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase">Atrasados</Text>
+                </div>
+                <div className="text-center border-l border-slate-100">
+                  <Text size="xl" fw={800} c="blue">15</Text>
+                  <Text size="xs" c="dimmed" tt="uppercase">Novas Vidas</Text>
+                </div>
+              </div>
+            </Stack>
+          </Paper>
+        </Grid.Col>
+
+        {/* Coluna 2: Atividade Recente */}
+        <Grid.Col span={{ base: 12, lg: 4 }}>
+          <Paper p="xl" radius="2rem" withBorder className="h-full">
+            <Title order={4} mb="lg">Últimos Atendimentos</Title>
+            
+            <Stack gap="md">
+              {recentExams.map((exam) => (
+                <Paper key={exam.id} p="md" radius="lg" withBorder className="hover:bg-slate-50 transition-colors">
+                  <Group justify="space-between" wrap="nowrap">
+                    <Group gap="sm">
+                      <Avatar color="blue" radius="md">{exam.name[0]}</Avatar>
+                      <div>
+                        <Text size="sm" fw={700}>{exam.name}</Text>
+                        <Text size="xs" c="dimmed">{exam.type}</Text>
+                      </div>
+                    </Group>
+                    <Badge color={exam.status === 'Normal' ? 'teal' : 'red'} variant="light">
+                      {exam.status}
+                    </Badge>
+                  </Group>
+                </Paper>
+              ))}
+
+              <Button variant="subtle" fullWidth color="gray" rightSection={<IconArrowUpRight size={14}/>}>
+                Ver histórico completo
+              </Button>
+            </Stack>
+          </Paper>
+        </Grid.Col>
+      </Grid>
+
+      {/* SEÇÃO: TABELA DE FILA (PREVIEW) */}
+      <Paper p="xl" radius="2rem" withBorder>
+        <Group justify="space-between" mb="xl">
+          <div>
+            <Title order={4}>Próximos da Fila</Title>
+            <Text size="xs" c="dimmed">Pacientes aguardando na recepção</Text>
+          </div>
+          <ActionIcon variant="subtle" color="gray"><IconDotsVertical size={18}/></ActionIcon>
+        </Group>
+
+        <Table verticalSpacing="md">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Funcionário</Table.Th>
-              <Table.Th>Setor</Table.Th>
-              <Table.Th>Vencimento</Table.Th>
+              <Table.Th>Paciente</Table.Th>
+              <Table.Th>Horário</Table.Th>
+              <Table.Th>Procedimento</Table.Th>
               <Table.Th>Status</Table.Th>
-              <Table.Th>Ação</Table.Th>
+              <Table.Th></Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {expiringEmployees.map((element) => (
-              <Table.Tr key={element.id}>
-                <Table.Td>
-                  <Group gap="sm">
-                    <Avatar size={30} radius="xl" color="blue">{element.name.charAt(0)}</Avatar>
-                    <Text size="sm" fw={500}>{element.name}</Text>
-                  </Group>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm" c="dimmed">{element.sector}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Text size="sm">{element.date}</Text>
-                </Table.Td>
-                <Table.Td>
-                  <Badge 
-                    color={element.status === 'Vencido' ? 'red' : 'yellow'} 
-                    variant="light"
-                  >
-                    {element.status}
-                  </Badge>
-                </Table.Td>
-                <Table.Td>
-                  <Button size="xs" variant="light" color="blue" radius="xl">
-                    Agendar
-                  </Button>
-                </Table.Td>
-              </Table.Tr>
-            ))}
+            <Table.Tr>
+              <Table.Td>
+                <Group gap="sm">
+                  <Avatar radius="xl" size="sm" color="indigo" src={null} />
+                  <Text size="sm" fw={600}>Ricardo Mendes</Text>
+                </Group>
+              </Table.Td>
+              <Table.Td><Text size="sm">14:00</Text></Table.Td>
+              <Table.Td><Badge variant="outline">Audiometria Ocupacional</Badge></Table.Td>
+              <Table.Td><Badge color="blue">Aguardando</Badge></Table.Td>
+              <Table.Td>
+                <Button size="compact-xs" variant="light" color="blue" leftSection={<IconPlayerPlay size={12}/>}>
+                  Atender
+                </Button>
+              </Table.Td>
+            </Table.Tr>
+            {/* Linha 2 */}
+            <Table.Tr>
+              <Table.Td>
+                <Group gap="sm">
+                  <Avatar radius="xl" size="sm" color="blue" src={null} />
+                  <Text size="sm" fw={600}>Juliana Costa</Text>
+                </Group>
+              </Table.Td>
+              <Table.Td><Text size="sm">14:30</Text></Table.Td>
+              <Table.Td><Badge variant="outline">Audiometria Ocupacional</Badge></Table.Td>
+              <Table.Td><Badge color="gray">Agendado</Badge></Table.Td>
+              <Table.Td>
+                <ActionIcon variant="subtle" color="gray"><IconFileDescription size={16}/></ActionIcon>
+              </Table.Td>
+            </Table.Tr>
           </Table.Tbody>
         </Table>
       </Paper>

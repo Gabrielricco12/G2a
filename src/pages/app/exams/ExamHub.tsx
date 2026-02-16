@@ -194,15 +194,15 @@ export function ExamHub() {
           <Text c="dimmed" size="sm" mt={4}>Gerencie a fila de atendimento diária</Text>
           
           <Group mt="md">
-            <DateInput 
-              value={selectedDate} 
-              onChange={setSelectedDate}
-              placeholder="Selecionar Data"
-              valueFormat="DD/MM/YYYY"
-              radius="xl"
-              leftSection={<IconCalendarEvent size={16} />}
-              className="w-44"
-            />
+           <DateInput 
+  value={selectedDate} 
+  onChange={(value: Date | null) => setSelectedDate(value)} // Força a tipagem de Date
+  placeholder="Selecionar Data"
+  valueFormat="DD/MM/YYYY"
+  radius="xl"
+  leftSection={<IconCalendarEvent size={16} />}
+  className="w-44"
+/>
             <Button 
               variant="subtle" 
               color="gray" 

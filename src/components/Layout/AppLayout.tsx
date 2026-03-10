@@ -37,7 +37,7 @@ export function AppLayout() {
   // Controle Desktop (Começa aberto, mas pode fechar TOTALMENTE)
   const [desktopOpened, setDesktopOpened] = useState(true);
 
-  const { companyId } = useParams();
+ 
   const { signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

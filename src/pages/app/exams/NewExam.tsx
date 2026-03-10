@@ -15,7 +15,7 @@ import {
   ThemeIcon 
 } from '@mantine/core';
 import { 
-  IconDeviceFloppy, 
+  
   IconArrowLeft, 
   IconEar, 
   IconCalculator,

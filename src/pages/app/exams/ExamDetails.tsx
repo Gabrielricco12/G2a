@@ -129,7 +129,7 @@ export function ExamDetails() {
                <IconBrain size={24} />
             </ThemeIcon>
             <div>
-               <Text tt="uppercase" size="xs" fw={700} c="dimmed" ls={1}>Análise do G2a Brain</Text>
+              <Text tt="uppercase" size="xs" fw={700} c="dimmed" style={{ letterSpacing: '1px' }}>Análise do G2a Brain</Text>
                <Title order={3} c="slate.8">Parecer Audiológico & Ocupacional</Title>
             </div>
          </Group>

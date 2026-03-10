@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+
 import { 
   Title, Text, Button, Paper, Group, Avatar, Badge, 
-  ActionIcon, Select, Modal, LoadingOverlay, 
-  Progress, Tooltip, Menu, PasswordInput, Stack, Alert
+ Select, Modal, LoadingOverlay, 
+  Progress, Tooltip,PasswordInput, Stack, Alert
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { 
-  IconCalendarEvent, IconClock, IconUserCheck, IconPlayerPlay, 
-  IconCheck, IconFileCheck, IconSearch, IconPlus, IconRefresh,
-  IconTrash, IconDotsVertical, IconLock, IconAlertTriangle
+  IconCalendarEvent, IconClock,  IconPlayerPlay, 
+  IconCheck, IconFileCheck,  IconPlus, IconRefresh,
+ IconLock, IconAlertTriangle
 } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';

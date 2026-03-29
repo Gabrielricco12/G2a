@@ -114,7 +114,7 @@ export function NewExam() {
       return;
     }
     setSaving(true);
-    const toastId = toast.loading('Analisando com a IA e salvando no banco...');
+    const toastId = toast.loading('G2A está analisando e salvando no banco...');
     try {
       const payload = {
         exam_id: examData.id,

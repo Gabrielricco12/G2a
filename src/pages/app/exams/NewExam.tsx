@@ -20,7 +20,7 @@ dayjs.locale('pt-br');
 
 const FREQUENCIES = [250, 500, 750, 1000, 1500, 2000, 3000, 4000, 6000, 8000];
 
-const G2A_BRAIN_API_URL = " https://g2a-brain-api-575936240892.us-central1.run.app/exams";
+const G2A_BRAIN_API_URL = "https://g2a-brain-api-575936240892.us-central1.run.app/api/v1/exams";
 
 // Grid: 4 linhas (OD-VA, OD-VO, OE-VA, OE-VO) x 10 colunas (frequências)
 type GridRow = 'od-air' | 'od-bone' | 'oe-air' | 'oe-bone';

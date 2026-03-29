@@ -17,7 +17,7 @@ interface AudiogramGraphProps {
   airPoints: Point[];
   bonePoints: Point[];
   ear: 'right' | 'left';
-  onPlot: (freq: number, db: number) => void;
+  onPlot?: (freq: number, db: number) => void;
   readonly?: boolean;
 }
 
@@ -62,7 +62,7 @@ export function AudiogramGraph({
 
   // --- CLICK HANDLER ---
   const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (readonly) return;
+    if (readonly || !onPlot) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const scaleX = width / rect.width;
     const scaleY = height / rect.height;

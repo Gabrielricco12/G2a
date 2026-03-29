@@ -5,7 +5,8 @@ import {
 } from '@mantine/core';
 import { 
   IconArrowLeft, IconEar, IconPrinter, IconCalendarEvent, 
-  IconAlertCircle, IconBrain, IconStethoscope, IconFileDescription
+  IconAlertCircle, IconBrain, IconStethoscope, IconFileDescription,
+  IconPencil
 } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown'; 
@@ -27,13 +28,13 @@ export function ExamDetails() {
       if (!examId) return;
       setLoading(true);
       try {
-        // Buscando dados do exame + Paciente + Profissional (incluindo Conselho)
         const { data, error: fetchError } = await supabase
           .from('audiometric_exams')
           .select(`
             *, 
             employee:employee_id (full_name, birth_date, gender, cpf),
-            professional:professional_id (full_name, crfa_numero, crfa_regiao)
+            professional:professional_id (full_name, crfa_numero, crfa_regiao),
+            editor:last_edited_by (full_name)
           `)
           .eq('id', examId)
           .single();
@@ -59,7 +60,6 @@ export function ExamDetails() {
     fetchExam();
   }, [examId]);
 
-  // Lógica de Impressão (Geração de PDF via Browser com layout de documento)
   const handlePrint = () => {
     window.print();
   };
@@ -68,13 +68,11 @@ export function ExamDetails() {
   if (error) return <Alert color="red" icon={<IconAlertCircle />}>{error}</Alert>;
   if (!examData) return null;
 
-  // Variáveis de Exibição
   const employeeName = examData.employee?.full_name || '---';
   const employeeCpf = examData.employee?.cpf || '---';
   const employeeAge = examData.employee?.birth_date ? dayjs().diff(examData.employee.birth_date, 'year') : '--';
   const examDate = examData.exam_date ? dayjs(examData.exam_date).format('DD/MM/YYYY') : '--';
   
-  // Dados do Profissional (Fonoaudiólogo)
   const fonoName = examData.professional?.full_name || 'Profissional não identificado';
   const fonoCRFa = examData.professional?.crfa_numero ? `CRFa: ${examData.professional.crfa_numero}` : 'CRFa: ---';
   const fonoRegiao = examData.professional?.crfa_regiao ? ` - ${examData.professional.crfa_regiao}ª Região` : '';
@@ -82,6 +80,12 @@ export function ExamDetails() {
   const clinico = diagnosis?.clinico || {};
   const aiInsights = diagnosis?.ai_insights || "Processando análise...";
   const isNormal = examData.result_status === 'normal';
+
+  // Dados de edição
+  const wasEdited = !!examData.last_edited_at;
+  const editorName = examData.editor?.full_name || 'Profissional não identificado';
+  const editedAt = examData.last_edited_at ? dayjs(examData.last_edited_at).format('DD/MM/YYYY [às] HH:mm') : '';
+  const editReason = examData.edit_reason || '';
 
   const toPoints = (data: any) => data ? Object.entries(data).map(([f, d]) => ({ freq: Number(f), db: Number(d) })) : [];
 
@@ -97,16 +101,21 @@ export function ExamDetails() {
           <Badge size="lg" color={isNormal ? 'teal' : 'orange'}>
             Status: {examData.result_status?.toUpperCase()}
           </Badge>
+          {wasEdited && (
+            <Badge size="lg" color="orange" variant="light" leftSection={<IconPencil size={14} />}
+              styles={{ label: { textTransform: 'none' } }}>
+              Editado
+            </Badge>
+          )}
           <Button color="blue" leftSection={<IconPrinter size={18}/>} onClick={handlePrint}>
             Gerar PDF do Laudo
           </Button>
         </Group>
       </div>
 
-      {/* 2. O LAUDO PARA IMPRESSÃO (ESTRUTURA DE DOCUMENTO) */}
+      {/* 2. O LAUDO PARA IMPRESSÃO */}
       <Paper id="printable-laudo" p="xl" radius="md" withBorder className="bg-white shadow-sm print:border-none print:shadow-none print:p-0">
         
-        {/* Cabeçalho do Laudo */}
         <div className="text-center mb-8">
           <Title order={2} className="text-slate-800 uppercase tracking-tight">Relatório de Avaliação Audiométrica</Title>
           <Text size="sm" c="dimmed">Documento Gerado via G2a Brain AI</Text>
@@ -129,7 +138,25 @@ export function ExamDetails() {
           </Grid.Col>
         </Grid>
 
-        {/* Análise da IA (Ocupacional e Clínica) */}
+        {/* Alerta de edição — aparece no laudo impresso também */}
+        {wasEdited && (
+          <div className="mb-6 p-4 rounded-lg border border-orange-200 bg-orange-50 print:bg-transparent print:border-orange-300">
+            <Group gap={8} mb={4}>
+              <IconPencil size={16} className="text-orange-600" />
+              <Text size="sm" fw={700} c="orange.8">Registro de Edição</Text>
+            </Group>
+            <Text size="sm" c="dark">
+              Este laudo foi editado por <strong>{editorName}</strong> em <strong>{editedAt}</strong>.
+            </Text>
+            {editReason && (
+              <Text size="sm" c="dimmed" mt={4} fs="italic">
+                Motivo: {editReason}
+              </Text>
+            )}
+          </div>
+        )}
+
+        {/* Análise da IA */}
         <div className="mb-10 bg-slate-50 p-6 rounded-xl border border-slate-100 print:bg-transparent print:border-slate-200">
           <Group mb="md">
             <IconBrain className="text-blue-600 print:hidden" size={24} />
@@ -163,7 +190,6 @@ export function ExamDetails() {
           </Grid.Col>
         </Grid>
 
-        {/* Gráficos em tamanho reduzido para o PDF */}
         <Grid mb={50}>
           <Grid.Col span={6}>
              <Paper withBorder p="xs" radius="md">
@@ -179,7 +205,7 @@ export function ExamDetails() {
           </Grid.Col>
         </Grid>
 
-        {/* RODAPÉ DE ASSINATURA (Onde sai o CRFa) */}
+        {/* RODAPÉ DE ASSINATURA */}
         <div className="mt-20 flex flex-col items-center">
           <div className="w-64 border-t border-slate-400 mb-2"></div>
           <Text fw={700} size="md">{fonoName}</Text>
@@ -189,7 +215,6 @@ export function ExamDetails() {
 
       </Paper>
 
-      {/* Estilos para garantir que o PDF saia perfeito */}
       <style>{`
         @media print {
           body { background: white !important; }

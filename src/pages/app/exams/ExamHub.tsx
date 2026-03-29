@@ -8,7 +8,7 @@ import { DateInput } from '@mantine/dates';
 import { 
   IconCalendarEvent, IconClock, IconUserCheck, IconPlayerPlay, 
   IconCheck, IconFileCheck, IconSearch, IconPlus, IconRefresh,
-  IconTrash, IconDotsVertical, IconLock, IconAlertTriangle
+  IconTrash, IconDotsVertical, IconLock, IconAlertTriangle, IconPencil
 } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
@@ -24,25 +24,21 @@ export function ExamHub() {
   const navigate = useNavigate();
   const { user } = useAuth();
   
-  // Estados de Dados
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [exams, setExams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados do Modal de Check-in
   const [checkInModalOpen, setCheckInModalOpen] = useState(false);
   const [patientsList, setPatientsList] = useState<any[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [examType, setExamType] = useState<string>('periodico');
   const [checkInLoading, setCheckInLoading] = useState(false);
 
-  // Estados de Segurança
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [examToEdit, setExamToEdit] = useState<any>(null); 
   const [verifying, setVerifying] = useState(false);
 
-  // 1. BUSCAR AGENDA
   const fetchDailyExams = async () => {
     if (!selectedDate) return;
     setLoading(true);
@@ -55,7 +51,9 @@ export function ExamHub() {
         .from('audiometric_exams')
         .select(`
           id, exam_type, result_status, exam_date, created_at, thresholds_od_air,
-          employee:employee_id (id, full_name, sector:sector_id(name), job:job_role_id(name))
+          last_edited_at, last_edited_by, edit_reason,
+          employee:employee_id (id, full_name, sector:sector_id(name), job:job_role_id(name)),
+          editor:last_edited_by (full_name)
         `)
         .eq('company_id', companyId)
         .gte('exam_date', startOfDay)
@@ -71,7 +69,6 @@ export function ExamHub() {
     }
   };
 
-  // 2. BUSCAR PACIENTES
   const fetchPatients = async () => {
     try {
       const { data } = await supabase
@@ -95,7 +92,6 @@ export function ExamHub() {
     if (companyId) fetchDailyExams();
   }, [selectedDate, companyId]);
 
-  // 3. CHECK-IN
   const handleCheckIn = async () => {
     if (!selectedPatientId || !companyId || !user?.id) return;
     setCheckInLoading(true);
@@ -107,7 +103,6 @@ export function ExamHub() {
         professional_id: user.id,
         exam_type: examType,
         exam_date: formattedDate,
-        // O exame nasce "normal" (vazio) e o Python muda depois se precisar
         result_status: 'normal' 
       }]);
       if (error) throw error;
@@ -121,15 +116,11 @@ export function ExamHub() {
     }
   };
 
-  // 4. LÓGICA DE NAVEGAÇÃO SEGURA
   const handleExamClick = (exam: any) => {
     const hasData = exam.thresholds_od_air && Object.keys(exam.thresholds_od_air).length > 0;
-
     if (!hasData) {
-      // Exame novo: entra direto na tela de realização
       navigate(`/app/${companyId}/exames/${exam.id}/realizar`);
     } else {
-      // Exame já tem dados: exige senha para editar
       setExamToEdit(exam);
       setSecurityModalOpen(true);
     }
@@ -138,21 +129,16 @@ export function ExamHub() {
   const handleVerifyPassword = async () => {
     if (!password || !user?.email || !examToEdit) return;
     setVerifying(true);
-
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email: user.email,
         password: password
       });
-
       if (error) throw new Error('Senha incorreta');
-
       toast.success('Acesso Liberado', { description: 'Edição de laudo autorizada.' });
       setSecurityModalOpen(false);
       setPassword('');
-      
       navigate(`/app/${companyId}/exames/${examToEdit.id}/realizar`);
-
     } catch (err) {
       toast.error('Acesso Negado', { description: 'Senha incorreta.' });
     } finally {
@@ -160,33 +146,17 @@ export function ExamHub() {
     }
   };
 
-  // --- 5. LÓGICA DE CORES (ESPELHO DO BANCO DE DADOS) ---
   const getStatusInfo = (exam: any) => {
-    // 1. Checa se o exame já tem pontos marcados
     const hasData = exam.thresholds_od_air && Object.keys(exam.thresholds_od_air).length > 0;
-    
-    if (!hasData) {
-      return { label: 'Aguardando', color: 'gray', icon: IconClock };
-    }
-
-    // 2. Lê a coluna exata do banco de dados (que foi salva pelo Python)
+    if (!hasData) return { label: 'Aguardando', color: 'gray', icon: IconClock };
     const dbStatus = exam.result_status?.toLowerCase();
-
-    if (dbStatus === 'normal') {
-      return { label: 'Normal', color: 'teal', icon: IconCheck };
-    } else if (dbStatus === 'alterado') {
-      return { label: 'Alterado', color: 'orange', icon: IconAlertTriangle };
-    } else if (dbStatus === 'sugestivo_painpse') {
-      return { label: 'Sugestivo PAIR', color: 'red', icon: IconAlertTriangle };
-    } else if (dbStatus === 'alterado_preexistente') {
-      return { label: 'Pré-existente', color: 'orange', icon: IconAlertTriangle };
-    }
-
-    // Fallback de segurança se o banco retornar vazio
+    if (dbStatus === 'normal') return { label: 'Normal', color: 'teal', icon: IconCheck };
+    if (dbStatus === 'alterado') return { label: 'Alterado', color: 'orange', icon: IconAlertTriangle };
+    if (dbStatus === 'sugestivo_painpse') return { label: 'Sugestivo PAIR', color: 'red', icon: IconAlertTriangle };
+    if (dbStatus === 'alterado_preexistente') return { label: 'Pré-existente', color: 'orange', icon: IconAlertTriangle };
     return { label: 'Concluído', color: 'blue', icon: IconFileCheck };
   };
 
-  // Estatísticas de Progresso
   const total = exams.length;
   const done = exams.filter(e => e.thresholds_od_air && Object.keys(e.thresholds_od_air).length > 0).length;
   const progress = total === 0 ? 0 : (done / total) * 100;
@@ -221,9 +191,7 @@ export function ExamHub() {
         </Paper>
 
         <Button 
-          size="lg" 
-          radius="xl" 
-          className="bg-blue-600 shadow-lg" 
+          size="lg" radius="xl" className="bg-blue-600 shadow-lg" 
           leftSection={<IconPlus size={20} />} 
           onClick={() => { fetchPatients(); setCheckInModalOpen(true); }}
         >
@@ -240,6 +208,9 @@ export function ExamHub() {
             {exams.map((exam) => {
               const status = getStatusInfo(exam);
               const isWaiting = status.label === 'Aguardando';
+              const wasEdited = !!exam.last_edited_at;
+              const editorName = exam.editor?.full_name || 'Profissional';
+              const editedAt = exam.last_edited_at ? dayjs(exam.last_edited_at).format('DD/MM/YYYY [às] HH:mm') : '';
 
               return (
                 <div 
@@ -275,18 +246,47 @@ export function ExamHub() {
                     </Group>
                   </div>
 
-                  <div className="min-w-[140px] flex justify-center">
-                    {/* AQUI A PÍLULA RECEBE A COR E O LABEL DO BANCO */}
+                  <div className="min-w-[140px] flex flex-col items-center gap-1">
                     <Badge color={status.color} variant="light" size="lg" leftSection={<status.icon size={14} />}>
                       {status.label}
                     </Badge>
+                    
+                    {/* Badge de edição */}
+                    {wasEdited && (
+                      <Tooltip
+                        multiline
+                        w={280}
+                        position="bottom"
+                        withArrow
+                        label={
+                          <div>
+                            <Text size="xs" fw={700} mb={2}>Laudo editado</Text>
+                            <Text size="xs">Por: {editorName}</Text>
+                            <Text size="xs">Em: {editedAt}</Text>
+                            {exam.edit_reason && (
+                              <Text size="xs" mt={4} fs="italic">Motivo: {exam.edit_reason}</Text>
+                            )}
+                          </div>
+                        }
+                      >
+                        <Badge
+                          size="xs"
+                          variant="light"
+                          color="orange"
+                          leftSection={<IconPencil size={10} />}
+                          style={{ cursor: 'help' }}
+                          styles={{ label: { textTransform: 'none' } }}
+                        >
+                          Editado em {dayjs(exam.last_edited_at).format('DD/MM HH:mm')}
+                        </Badge>
+                      </Tooltip>
+                    )}
                   </div>
 
                   <div className="flex gap-2 min-w-[160px] justify-end">
                     {isWaiting ? (
                       <Button 
-                        radius="xl" 
-                        color="blue" 
+                        radius="xl" color="blue" 
                         leftSection={<IconPlayerPlay size={18} />}
                         onClick={() => handleExamClick(exam)} 
                       >
@@ -296,9 +296,7 @@ export function ExamHub() {
                       <>
                         <Tooltip label="Visualizar Laudo">
                           <Button 
-                            variant="light" 
-                            color="blue" 
-                            radius="xl" 
+                            variant="light" color="blue" radius="xl" 
                             leftSection={<IconFileCheck size={16} />}
                             onClick={() => navigate(`/app/${companyId}/exames/${exam.id}/visualizar`)}
                           >
@@ -308,10 +306,7 @@ export function ExamHub() {
                         
                         <Tooltip label="Editar Gráfico (Requer Senha)">
                           <ActionIcon 
-                            variant="light" 
-                            color="gray" 
-                            size="lg"
-                            radius="xl" 
+                            variant="light" color="gray" size="lg" radius="xl" 
                             onClick={() => handleExamClick(exam)}
                           >
                             <IconLock size={16} />
@@ -334,8 +329,7 @@ export function ExamHub() {
 
       {/* MODAL CHECK-IN */}
       <Modal 
-        opened={checkInModalOpen} 
-        onClose={() => setCheckInModalOpen(false)}
+        opened={checkInModalOpen} onClose={() => setCheckInModalOpen(false)}
         title={<Text fw={700} size="lg">Novo Atendimento</Text>}
         centered radius="lg"
       >

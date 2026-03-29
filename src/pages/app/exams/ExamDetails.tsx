@@ -48,7 +48,7 @@ export function ExamDetails() {
             if (typeof parsed === 'string') parsed = JSON.parse(parsed);
             setDiagnosis(parsed);
           } catch (e) {
-            console.error("Erro no Parse do JSON:", e);
+            console.error("Erro ao enviar dados, procure pela assistência.", e);
           }
         }
       } catch (err: any) {
@@ -118,7 +118,7 @@ export function ExamDetails() {
         
         <div className="text-center mb-8">
           <Title order={2} className="text-slate-800 uppercase tracking-tight">Relatório de Avaliação Audiométrica</Title>
-          <Text size="sm" c="dimmed">Documento Gerado via G2a Brain AI</Text>
+          <Text size="sm" c="dimmed">Documento Gerado via G2a</Text>
         </div>
 
         <Divider mb="xl" label="Identificação do Paciente" labelPosition="center" />
@@ -160,7 +160,7 @@ export function ExamDetails() {
         <div className="mb-10 bg-slate-50 p-6 rounded-xl border border-slate-100 print:bg-transparent print:border-slate-200">
           <Group mb="md">
             <IconBrain className="text-blue-600 print:hidden" size={24} />
-            <Title order={4}>Parecer Fonoaudiológico (AI Insights)</Title>
+            <Title order={4}>Sugestão Fonoaudiológica </Title>
           </Group>
           <article className="prose prose-sm max-w-none text-slate-700 leading-relaxed">
             <ReactMarkdown>{aiInsights}</ReactMarkdown>

@@ -115,7 +115,7 @@ export function Dashboard() {
         .select(`*, employee:employee_id (full_name)`)
         .eq('company_id', companyId)
         .eq('exam_date', todayDate)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       const todayList = todayData || [];
       const scheduledCount = todayList.length;

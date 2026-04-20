@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Paper, Grid, Button, Group, SegmentedControl, Text,
-  LoadingOverlay, Badge, Avatar, ActionIcon, ThemeIcon,
+  LoadingOverlay, Badge, Avatar, ActionIcon, ThemeIcon, Tooltip,
   Modal, Textarea, Stack, Alert
 } from '@mantine/core';
 import {
@@ -20,8 +20,10 @@ dayjs.locale('pt-br');
 
 const FREQUENCIES = [250, 500, 750, 1000, 1500, 2000, 3000, 4000, 6000, 8000];
 
+// URL da sua API em Python (Cérebro G2A)
 const G2A_BRAIN_API_URL = "https://g2a-brain-api-575936240892.us-central1.run.app/api/v1/exams";
 
+// Tipagem do Grid de Digitação
 type GridRow = 'od-air' | 'od-bone' | 'oe-air' | 'oe-bone';
 const GRID_ROWS: GridRow[] = ['od-air', 'od-bone', 'oe-air', 'oe-bone'];
 const cellId = (row: GridRow, freqIdx: number) => `cell-${row}-${freqIdx}`;
@@ -35,7 +37,7 @@ export function NewExam() {
   const [saving, setSaving] = useState(false);
   const [examData, setExamData] = useState<any>(null);
   
-  // 🔹 NOVO ESTADO: Guarda o exame de referência do paciente
+  // 🔹 ESTADO: Guarda o exame de referência do paciente (Baseline)
   const [refExam, setRefExam] = useState<any>(null);
 
   const [odAir, setOdAir] = useState<Record<string, number>>({});
@@ -49,7 +51,7 @@ export function NewExam() {
   const [activeRow, setActiveRow] = useState(0);
   const [activeCol, setActiveCol] = useState(0);
 
-  // --- CONTROLE DE EDIÇÃO ---
+  // --- CONTROLE DE EDIÇÃO E AUDITORIA ---
   const [isEditing, setIsEditing] = useState(false); 
   const [editReasonModal, setEditReasonModal] = useState(false);
   const [editReason, setEditReason] = useState('');
@@ -64,9 +66,11 @@ export function NewExam() {
           .select(`*, employee:employee_id (full_name, birth_date, gender, cpf)`)
           .eq('id', examId)
           .single();
+          
         if (error) throw error;
         setExamData(data);
 
+        // Detecta se o exame já tem dados (Modo Edição)
         const hadData = data.thresholds_od_air && Object.keys(data.thresholds_od_air).length > 0;
         setIsEditing(hadData);
 
@@ -75,14 +79,14 @@ export function NewExam() {
         if (data.thresholds_od_bone) setOdBone(data.thresholds_od_bone);
         if (data.thresholds_oe_bone) setOeBone(data.thresholds_oe_bone);
 
-        // 🔹 BUSCA O EXAME DE REFERÊNCIA (BASELINE) 🔹
+        // 🔹 BUSCA O EXAME DE REFERÊNCIA (BASELINE) PARA AS LINHAS FANTASMAS
         if (data.employee_id) {
           const { data: refData } = await supabase
             .from('audiometric_exams')
             .select('*')
             .eq('employee_id', data.employee_id)
             .eq('is_reference', true)
-            .neq('id', examId) // Ignora se ele mesmo for a referência (caso de edição)
+            .neq('id', examId) 
             .order('exam_date', { ascending: false })
             .limit(1);
 
@@ -111,10 +115,10 @@ export function NewExam() {
     }
   };
 
-  const toPoints = (data: Record<string, number>) =>
-    Object.entries(data).map(([freq, db]) => ({ freq: Number(freq), db }));
+  const toPoints = (data?: Record<string, number> | null) =>
+    data ? Object.entries(data).map(([freq, db]) => ({ freq: Number(freq), db })) : [];
 
-  // --- SALVAR ---
+  // --- SALVAMENTO INTEGRADO COM O CÉREBRO G2A ---
   const executeSave = async (reason?: string) => {
     if (!examData || !user?.id) {
       toast.error('Dados insuficientes para salvar.');
@@ -123,6 +127,7 @@ export function NewExam() {
     setSaving(true);
     const toastId = toast.loading('G2A está analisando e salvando no banco...');
     try {
+      // 1. Envia para a API em Python processar (OMS, Silman, PAINPSE)
       const payload = {
         exam_id: examData.id,
         employee_id: examData.employee_id,
@@ -136,17 +141,21 @@ export function NewExam() {
         thresholds_od_bone: Object.keys(odBone).length > 0 ? odBone : null,
         thresholds_oe_bone: Object.keys(oeBone).length > 0 ? oeBone : null,
       };
+      
       const brainResponse = await fetch(G2A_BRAIN_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      
       if (!brainResponse.ok) {
         const errorData = await brainResponse.json();
         throw new Error(errorData.detail || 'Falha no processamento pelo Cérebro G2A');
       }
+      
       const brainResult = await brainResponse.json();
 
+      // 2. Atualiza o banco de dados via Supabase
       const updateData: Record<string, any> = {
         thresholds_od_air: Object.keys(odAir).length > 0 ? odAir : null,
         thresholds_oe_air: Object.keys(oeAir).length > 0 ? oeAir : null,
@@ -159,6 +168,7 @@ export function NewExam() {
         rest_hours_ok: true,
       };
 
+      // 3. Auditoria de Edição
       if (isEditing && reason) {
         updateData.last_edited_at = new Date().toISOString();
         updateData.last_edited_by = user.id;
@@ -169,6 +179,7 @@ export function NewExam() {
         .from('audiometric_exams')
         .update(updateData)
         .eq('id', examData.id);
+        
       if (dbError) throw dbError;
 
       toast.success(
@@ -203,7 +214,7 @@ export function NewExam() {
     executeSave(editReason.trim());
   };
 
-  // --- GRID HELPERS ---
+  // --- GRID DE DIGITAÇÃO RÁPIDA (HELPERS) ---
   const getSetterForRow = (row: GridRow) => {
     switch (row) {
       case 'od-air': return setOdAir;
@@ -278,7 +289,7 @@ export function NewExam() {
   const totalOD = countPoints(odAir) + countPoints(odBone);
   const totalOE = countPoints(oeAir) + countPoints(oeBone);
 
-  // --- RENDER CELL DE ENTRADA (MANTIDO) ---
+  // --- RENDERIZADORES DE CÉLULAS E GRIDS ---
   const renderCell = (
     row: GridRow, rowIdx: number, colIdx: number,
     data: Record<string, number>, earColor: string,
@@ -371,7 +382,7 @@ export function NewExam() {
     );
   };
 
-  // 🔹 RENDERIZADORES PARA O GRID DE REFERÊNCIA (APENAS LEITURA) 🔹
+  // 🔹 RENDERIZADORES PARA O GRID DE REFERÊNCIA (APENAS LEITURA)
   const renderRefCell = (colIdx: number, data: Record<string, number> | null | undefined) => {
     const freq = FREQUENCIES[colIdx];
     const value = data ? data[freq] : undefined;
@@ -436,7 +447,6 @@ export function NewExam() {
     );
   };
 
-
   if (loading) return <LoadingOverlay visible overlayProps={{ blur: 2 }} />;
 
   return (
@@ -499,7 +509,7 @@ export function NewExam() {
         </Alert>
       )}
 
-      {/* ══════════ AUDIOGRAMAS ══════════ */}
+      {/* ══════════ AUDIOGRAMAS (COM LINHAS FANTASMAS) ══════════ */}
       <Grid gutter="md" align="stretch">
         <Grid.Col span={{ base: 12, lg: 6 }}>
           <Paper p="sm" radius="lg" className="border border-slate-200 bg-white h-full">
@@ -519,11 +529,18 @@ export function NewExam() {
               />
             </div>
             <div className="bg-white rounded-xl flex justify-center">
-              <AudiogramGraph ear="right" airPoints={toPoints(odAir)} bonePoints={toPoints(odBone)}
-                onPlot={(f, d) => handlePlot('right', f, d)} />
+              <AudiogramGraph 
+                ear="right" 
+                airPoints={toPoints(odAir)} 
+                bonePoints={toPoints(odBone)}
+                refAirPoints={toPoints(refExam?.thresholds_od_air)}
+                refBonePoints={toPoints(refExam?.thresholds_od_bone)}
+                onPlot={(f, d) => handlePlot('right', f, d)} 
+              />
             </div>
           </Paper>
         </Grid.Col>
+        
         <Grid.Col span={{ base: 12, lg: 6 }}>
           <Paper p="sm" radius="lg" className="border border-slate-200 bg-white h-full">
             <div className="flex items-center justify-between mb-3 px-1">
@@ -542,14 +559,20 @@ export function NewExam() {
               />
             </div>
             <div className="bg-white rounded-xl flex justify-center">
-              <AudiogramGraph ear="left" airPoints={toPoints(oeAir)} bonePoints={toPoints(oeBone)}
-                onPlot={(f, d) => handlePlot('left', f, d)} />
+              <AudiogramGraph 
+                ear="left" 
+                airPoints={toPoints(oeAir)} 
+                bonePoints={toPoints(oeBone)}
+                refAirPoints={toPoints(refExam?.thresholds_oe_air)}
+                refBonePoints={toPoints(refExam?.thresholds_oe_bone)}
+                onPlot={(f, d) => handlePlot('left', f, d)} 
+              />
             </div>
           </Paper>
         </Grid.Col>
       </Grid>
 
-      {/* ══════════ GRID ESTILO AUDIÔMETRO (DIGITAÇÃO) ══════════ */}
+      {/* ══════════ GRID DE DIGITAÇÃO ══════════ */}
       <Paper p="md" radius="lg" withBorder className="bg-white">
         <Group mb="sm" justify="space-between">
           <Group gap={8}>
@@ -560,7 +583,7 @@ export function NewExam() {
           </Group>
           <Group gap={6}>
             <IconKeyboard size={14} className="text-slate-400" />
-            <Text size="xs" c="dimmed">← → ↑ ↓ para navegar · Enter avança · Delete limpa</Text>
+            <Text size="xs" c="dimmed">← → ↑ ↓ navega · Enter avança · Delete ou "-" limpa</Text>
           </Group>
         </Group>
         <div className="overflow-x-auto rounded-lg border border-slate-200" style={{ minWidth: 0 }}>
@@ -577,7 +600,7 @@ export function NewExam() {
               <ThemeIcon size="md" radius="md" color="teal" variant="light">
                 <IconHistory size={16} />
               </ThemeIcon>
-              <Text fw={700} size="sm" c="dark">Exame de Referência (Baseline)</Text>
+              <Text fw={700} size="sm" c="dark">Exame de Referência (Baseline Anterior)</Text>
               <Badge size="xs" color="teal" variant="light" styles={{ label: { textTransform: 'none' } }}>
                 Realizado em {dayjs(refExam.exam_date).format('DD/MM/YYYY')}
               </Badge>

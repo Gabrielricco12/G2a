@@ -19,6 +19,15 @@ import { toast } from 'sonner';
 
 dayjs.locale('pt-br');
 
+const EXAM_TYPE_OPTIONS = [
+  { value: 'admissional', label: 'Admissional' },
+  { value: 'periodico', label: 'Periódico' },
+  { value: 'demissional', label: 'Demissional' },
+  { value: 'mudanca_risco', label: 'Mudança de Risco/Função' },
+  { value: 'retorno_trabalho', label: 'Retorno ao Trabalho' },
+  { value: 'reteste', label: 'Reteste' }
+];
+
 export function ExamHub() {
   const { companyId } = useParams();
   const navigate = useNavigate();
@@ -157,6 +166,11 @@ export function ExamHub() {
     return { label: 'Concluído', color: 'blue', icon: IconFileCheck };
   };
 
+  const formatExamType = (type: string) => {
+    const option = EXAM_TYPE_OPTIONS.find(o => o.value === type);
+    return option ? option.label : type.replace('_', ' ');
+  };
+
   const total = exams.length;
   const done = exams.filter(e => e.thresholds_od_air && Object.keys(e.thresholds_od_air).length > 0).length;
   const progress = total === 0 ? 0 : (done / total) * 100;
@@ -238,8 +252,8 @@ export function ExamHub() {
                           <Badge variant="dot" color="gray" size="sm" className="font-normal">
                             {exam.employee?.sector?.name || 'Setor N/A'}
                           </Badge>
-                          <Badge variant="outline" color="blue" size="sm" tt="uppercase">
-                            {exam.exam_type?.replace('_', ' ')}
+                          <Badge variant="outline" color={exam.exam_type === 'reteste' ? 'red' : 'blue'} size="sm" tt="uppercase">
+                            {formatExamType(exam.exam_type)}
                           </Badge>
                         </Group>
                       </div>
@@ -335,7 +349,7 @@ export function ExamHub() {
       >
         <Stack>
           <Select label="Paciente" searchable data={patientsList} value={selectedPatientId} onChange={setSelectedPatientId} />
-          <Select label="Tipo" data={['admissional', 'periodico', 'demissional']} value={examType} onChange={(v) => setExamType(v || 'periodico')} />
+          <Select label="Tipo" data={EXAM_TYPE_OPTIONS} value={examType} onChange={(v) => setExamType(v || 'periodico')} />
           <Button fullWidth mt="md" radius="xl" onClick={handleCheckIn} loading={checkInLoading}>Confirmar</Button>
         </Stack>
       </Modal>

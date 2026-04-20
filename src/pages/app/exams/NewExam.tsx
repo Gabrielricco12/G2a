@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Paper, Grid, Button, Group, SegmentedControl, Text,
-  LoadingOverlay, Badge, Avatar, ActionIcon, ThemeIcon, Tooltip,
+  LoadingOverlay, Badge, Avatar, ActionIcon, ThemeIcon,
   Modal, Textarea, Stack, Alert
 } from '@mantine/core';
 import {
@@ -37,7 +37,7 @@ export function NewExam() {
   const [saving, setSaving] = useState(false);
   const [examData, setExamData] = useState<any>(null);
   
-  // 🔹 ESTADO: Guarda o exame de referência do paciente (Baseline)
+  // 🔹 ESTADO: Guarda o exame fantasma (Baseline ou Último Exame para Reteste)
   const [refExam, setRefExam] = useState<any>(null);
 
   const [odAir, setOdAir] = useState<Record<string, number>>({});
@@ -70,7 +70,6 @@ export function NewExam() {
         if (error) throw error;
         setExamData(data);
 
-        // Detecta se o exame já tem dados (Modo Edição)
         const hadData = data.thresholds_od_air && Object.keys(data.thresholds_od_air).length > 0;
         setIsEditing(hadData);
 
@@ -79,16 +78,24 @@ export function NewExam() {
         if (data.thresholds_od_bone) setOdBone(data.thresholds_od_bone);
         if (data.thresholds_oe_bone) setOeBone(data.thresholds_oe_bone);
 
-        // 🔹 BUSCA O EXAME DE REFERÊNCIA (BASELINE) PARA AS LINHAS FANTASMAS
+        // 🔹 LÓGICA DE BUSCA DO EXAME FANTASMA (RETESTE vs BASELINE) 🔹
         if (data.employee_id) {
-          const { data: refData } = await supabase
+          let query = supabase
             .from('audiometric_exams')
             .select('*')
             .eq('employee_id', data.employee_id)
-            .eq('is_reference', true)
             .neq('id', examId) 
             .order('exam_date', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(1);
+
+          // Se NÃO for reteste, o Fantasma deve ser estritamente o Baseline (is_reference = true)
+          // Se for reteste, ele puxa o último exame feito (que provavelmente deu alterado)
+          if (data.exam_type !== 'reteste') {
+             query = query.eq('is_reference', true);
+          }
+
+          const { data: refData } = await query;
 
           if (refData && refData.length > 0) {
             setRefExam(refData[0]);
@@ -118,7 +125,6 @@ export function NewExam() {
   const toPoints = (data?: Record<string, number> | null) =>
     data ? Object.entries(data).map(([freq, db]) => ({ freq: Number(freq), db })) : [];
 
-  // --- SALVAMENTO INTEGRADO COM O CÉREBRO G2A ---
   const executeSave = async (reason?: string) => {
     if (!examData || !user?.id) {
       toast.error('Dados insuficientes para salvar.');
@@ -127,7 +133,6 @@ export function NewExam() {
     setSaving(true);
     const toastId = toast.loading('G2A está analisando e salvando no banco...');
     try {
-      // 1. Envia para a API em Python processar (OMS, Silman, PAINPSE)
       const payload = {
         exam_id: examData.id,
         employee_id: examData.employee_id,
@@ -155,7 +160,6 @@ export function NewExam() {
       
       const brainResult = await brainResponse.json();
 
-      // 2. Atualiza o banco de dados via Supabase
       const updateData: Record<string, any> = {
         thresholds_od_air: Object.keys(odAir).length > 0 ? odAir : null,
         thresholds_oe_air: Object.keys(oeAir).length > 0 ? oeAir : null,
@@ -168,7 +172,6 @@ export function NewExam() {
         rest_hours_ok: true,
       };
 
-      // 3. Auditoria de Edição
       if (isEditing && reason) {
         updateData.last_edited_at = new Date().toISOString();
         updateData.last_edited_by = user.id;
@@ -184,10 +187,7 @@ export function NewExam() {
 
       toast.success(
         isEditing ? 'Laudo editado e salvo com sucesso!' : 'Laudo gerado e salvo com sucesso!',
-        {
-          id: toastId,
-          description: isEditing ? 'A edição foi registrada com motivo e autor.' : 'O diagnóstico inteligente já está disponível.',
-        }
+        { id: toastId, description: isEditing ? 'A edição foi registrada com motivo e autor.' : 'O diagnóstico inteligente já está disponível.' }
       );
       navigate(-1);
     } catch (err: any) {
@@ -214,7 +214,6 @@ export function NewExam() {
     executeSave(editReason.trim());
   };
 
-  // --- GRID DE DIGITAÇÃO RÁPIDA (HELPERS) ---
   const getSetterForRow = (row: GridRow) => {
     switch (row) {
       case 'od-air': return setOdAir;
@@ -289,7 +288,6 @@ export function NewExam() {
   const totalOD = countPoints(odAir) + countPoints(odBone);
   const totalOE = countPoints(oeAir) + countPoints(oeBone);
 
-  // --- RENDERIZADORES DE CÉLULAS E GRIDS ---
   const renderCell = (
     row: GridRow, rowIdx: number, colIdx: number,
     data: Record<string, number>, earColor: string,
@@ -382,7 +380,6 @@ export function NewExam() {
     );
   };
 
-  // 🔹 RENDERIZADORES PARA O GRID DE REFERÊNCIA (APENAS LEITURA)
   const renderRefCell = (colIdx: number, data: Record<string, number> | null | undefined) => {
     const freq = FREQUENCIES[colIdx];
     const value = data ? data[freq] : undefined;
@@ -471,7 +468,7 @@ export function NewExam() {
                 {examData?.employee?.birth_date
                   ? `${dayjs().diff(examData.employee.birth_date, 'year')} anos`
                   : '—'}{' '}
-                · {examData?.exam_type || 'Exame'} ·{' '}
+                · {examData?.exam_type?.replace('_', ' ') || 'Exame'} ·{' '}
                 {examData?.exam_date ? dayjs(examData.exam_date).format('DD/MM/YYYY') : '—'}
               </Text>
             </div>
@@ -592,16 +589,18 @@ export function NewExam() {
         </div>
       </Paper>
 
-      {/* ══════════ EXAME DE REFERÊNCIA (BASELINE) ══════════ */}
+      {/* ══════════ EXAME DE REFERÊNCIA FANTASMA ══════════ */}
       {refExam && (
         <Paper p="md" radius="lg" withBorder className="bg-slate-50 border-dashed border-slate-300">
           <Group mb="sm" justify="space-between">
             <Group gap={8}>
-              <ThemeIcon size="md" radius="md" color="teal" variant="light">
+              <ThemeIcon size="md" radius="md" color={examData?.exam_type === 'reteste' ? 'red' : 'teal'} variant="light">
                 <IconHistory size={16} />
               </ThemeIcon>
-              <Text fw={700} size="sm" c="dark">Exame de Referência (Baseline Anterior)</Text>
-              <Badge size="xs" color="teal" variant="light" styles={{ label: { textTransform: 'none' } }}>
+              <Text fw={700} size="sm" c="dark">
+                {examData?.exam_type === 'reteste' ? 'Último Exame (Comparativo do Reteste)' : 'Exame de Referência (Baseline Anterior)'}
+              </Text>
+              <Badge size="xs" color={examData?.exam_type === 'reteste' ? 'red' : 'teal'} variant="light" styles={{ label: { textTransform: 'none' } }}>
                 Realizado em {dayjs(refExam.exam_date).format('DD/MM/YYYY')}
               </Badge>
             </Group>

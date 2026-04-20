@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Paper, Grid, Button, Group, SegmentedControl, Text,
-  LoadingOverlay, Badge, Avatar, ActionIcon, ThemeIcon, Tooltip,
+  LoadingOverlay, Badge, Avatar, ActionIcon, ThemeIcon,
   Modal, Textarea, Stack, Alert
 } from '@mantine/core';
 import {
   IconDeviceFloppy, IconArrowLeft, IconCalculator, IconKeyboard,
-  IconAlertTriangle, IconPencil
+  IconAlertTriangle, IconPencil, IconHistory
 } from '@tabler/icons-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AudiogramGraph } from '../../../components/Audiogram/AudiogramGraph';
@@ -22,7 +22,6 @@ const FREQUENCIES = [250, 500, 750, 1000, 1500, 2000, 3000, 4000, 6000, 8000];
 
 const G2A_BRAIN_API_URL = "https://g2a-brain-api-575936240892.us-central1.run.app/api/v1/exams";
 
-// Grid: 4 linhas (OD-VA, OD-VO, OE-VA, OE-VO) x 10 colunas (frequências)
 type GridRow = 'od-air' | 'od-bone' | 'oe-air' | 'oe-bone';
 const GRID_ROWS: GridRow[] = ['od-air', 'od-bone', 'oe-air', 'oe-bone'];
 const cellId = (row: GridRow, freqIdx: number) => `cell-${row}-${freqIdx}`;
@@ -35,6 +34,9 @@ export function NewExam() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [examData, setExamData] = useState<any>(null);
+  
+  // 🔹 NOVO ESTADO: Guarda o exame de referência do paciente
+  const [refExam, setRefExam] = useState<any>(null);
 
   const [odAir, setOdAir] = useState<Record<string, number>>({});
   const [oeAir, setOeAir] = useState<Record<string, number>>({});
@@ -48,7 +50,7 @@ export function NewExam() {
   const [activeCol, setActiveCol] = useState(0);
 
   // --- CONTROLE DE EDIÇÃO ---
-  const [isEditing, setIsEditing] = useState(false); // true se exame já tinha dados
+  const [isEditing, setIsEditing] = useState(false); 
   const [editReasonModal, setEditReasonModal] = useState(false);
   const [editReason, setEditReason] = useState('');
 
@@ -65,7 +67,6 @@ export function NewExam() {
         if (error) throw error;
         setExamData(data);
 
-        // Detecta se é edição (exame já tinha dados salvos)
         const hadData = data.thresholds_od_air && Object.keys(data.thresholds_od_air).length > 0;
         setIsEditing(hadData);
 
@@ -73,6 +74,23 @@ export function NewExam() {
         if (data.thresholds_oe_air) setOeAir(data.thresholds_oe_air);
         if (data.thresholds_od_bone) setOdBone(data.thresholds_od_bone);
         if (data.thresholds_oe_bone) setOeBone(data.thresholds_oe_bone);
+
+        // 🔹 BUSCA O EXAME DE REFERÊNCIA (BASELINE) 🔹
+        if (data.employee_id) {
+          const { data: refData } = await supabase
+            .from('audiometric_exams')
+            .select('*')
+            .eq('employee_id', data.employee_id)
+            .eq('is_reference', true)
+            .neq('id', examId) // Ignora se ele mesmo for a referência (caso de edição)
+            .order('exam_date', { ascending: false })
+            .limit(1);
+
+          if (refData && refData.length > 0) {
+            setRefExam(refData[0]);
+          }
+        }
+
       } catch (err) {
         toast.error('Erro ao carregar avaliação base');
         navigate(-1);
@@ -93,21 +111,10 @@ export function NewExam() {
     }
   };
 
-  const handleDeletePoint = (ear: 'right' | 'left', type: 'air' | 'bone', freq: number) => {
-    const setter = ear === 'right'
-      ? (type === 'air' ? setOdAir : setOdBone)
-      : (type === 'air' ? setOeAir : setOeBone);
-    setter(prev => {
-      const newState = { ...prev };
-      delete newState[freq];
-      return newState;
-    });
-  };
-
   const toPoints = (data: Record<string, number>) =>
     Object.entries(data).map(([freq, db]) => ({ freq: Number(freq), db }));
 
-  // --- SALVAR (com ou sem dados de edição) ---
+  // --- SALVAR ---
   const executeSave = async (reason?: string) => {
     if (!examData || !user?.id) {
       toast.error('Dados insuficientes para salvar.');
@@ -140,7 +147,6 @@ export function NewExam() {
       }
       const brainResult = await brainResponse.json();
 
-      // Monta o objeto de update
       const updateData: Record<string, any> = {
         thresholds_od_air: Object.keys(odAir).length > 0 ? odAir : null,
         thresholds_oe_air: Object.keys(oeAir).length > 0 ? oeAir : null,
@@ -153,7 +159,6 @@ export function NewExam() {
         rest_hours_ok: true,
       };
 
-      // Se é edição, registra auditoria
       if (isEditing && reason) {
         updateData.last_edited_at = new Date().toISOString();
         updateData.last_edited_by = user.id;
@@ -170,9 +175,7 @@ export function NewExam() {
         isEditing ? 'Laudo editado e salvo com sucesso!' : 'Laudo gerado e salvo com sucesso!',
         {
           id: toastId,
-          description: isEditing
-            ? 'A edição foi registrada com motivo e autor.'
-            : 'O diagnóstico inteligente já está disponível.',
+          description: isEditing ? 'A edição foi registrada com motivo e autor.' : 'O diagnóstico inteligente já está disponível.',
         }
       );
       navigate(-1);
@@ -183,7 +186,6 @@ export function NewExam() {
     }
   };
 
-  // Botão "Salvar" — se é edição, abre modal de motivo primeiro
   const handleSave = () => {
     if (isEditing) {
       setEditReasonModal(true);
@@ -211,18 +213,6 @@ export function NewExam() {
     }
   };
 
-  const getDataForRow = useCallback(
-    (row: GridRow) => {
-      switch (row) {
-        case 'od-air': return odAir;
-        case 'od-bone': return odBone;
-        case 'oe-air': return oeAir;
-        case 'oe-bone': return oeBone;
-      }
-    },
-    [odAir, odBone, oeAir, oeBone],
-  );
-
   const focusCell = useCallback((rowIdx: number, colIdx: number) => {
     const id = cellId(GRID_ROWS[rowIdx], colIdx);
     setTimeout(() => {
@@ -247,11 +237,7 @@ export function NewExam() {
     setter(prev => ({ ...prev, [freq]: clamped }));
   };
 
-  const handleGridKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    rowIdx: number,
-    colIdx: number,
-  ) => {
+  const handleGridKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIdx: number, colIdx: number) => {
     const lastCol = FREQUENCIES.length - 1;
     switch (e.key) {
       case 'ArrowRight': e.preventDefault(); if (colIdx < lastCol) focusCell(rowIdx, colIdx + 1); break;
@@ -288,12 +274,11 @@ export function NewExam() {
     }
   };
 
-  // --- CONTADORES ---
   const countPoints = (d: Record<string, number>) => Object.keys(d).length;
   const totalOD = countPoints(odAir) + countPoints(odBone);
   const totalOE = countPoints(oeAir) + countPoints(oeBone);
 
-  // --- RENDER CELL ---
+  // --- RENDER CELL DE ENTRADA (MANTIDO) ---
   const renderCell = (
     row: GridRow, rowIdx: number, colIdx: number,
     data: Record<string, number>, earColor: string,
@@ -329,27 +314,18 @@ export function NewExam() {
         onKeyDown={(e) => handleGridKeyDown(e, rowIdx, colIdx)}
         className="audiometer-cell"
         style={{
-          width: '100%',
-          height: 34,
-          border: 'none',
+          width: '100%', height: 34, border: 'none',
           borderRight: colIdx < FREQUENCIES.length - 1 ? '1px solid #e2e8f0' : 'none',
-          textAlign: 'center',
-          fontSize: 14,
-          fontWeight: hasValue ? 700 : 400,
-          fontVariantNumeric: 'tabular-nums',
-          fontFamily: "'SF Mono', 'Cascadia Code', 'Consolas', monospace",
+          textAlign: 'center', fontSize: 14, fontWeight: hasValue ? 700 : 400,
+          fontVariantNumeric: 'tabular-nums', fontFamily: "'SF Mono', 'Cascadia Code', 'Consolas', monospace",
           color: hasValue ? '#111' : '#d1d5db',
           backgroundColor: isActive ? earColor + '14' : 'transparent',
-          outline: 'none',
-          caretColor: earColor,
-          padding: 0,
-          boxSizing: 'border-box' as const,
+          outline: 'none', caretColor: earColor, padding: 0, boxSizing: 'border-box',
         }}
       />
     );
   };
 
-  // --- RENDER EAR GRID ---
   const renderEarGrid = (
     label: string, earColor: string,
     airData: Record<string, number>, boneData: Record<string, number>,
@@ -359,14 +335,10 @@ export function NewExam() {
     const boneRow = GRID_ROWS[boneRowIdx];
     return (
       <>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `56px repeat(${FREQUENCIES.length}, 1fr)`,
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `56px repeat(${FREQUENCIES.length}, 1fr)` }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 800, fontSize: 13, color: earColor,
-            backgroundColor: earColor + '0A',
+            fontWeight: 800, fontSize: 13, color: earColor, backgroundColor: earColor + '0A',
             borderBottom: `2px solid ${earColor}`, padding: '6px 0',
           }}>{label}</div>
           {FREQUENCIES.map((freq) => (
@@ -379,35 +351,91 @@ export function NewExam() {
             }}>{fmtFreq(freq)}</div>
           ))}
         </div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `56px repeat(${FREQUENCIES.length}, 1fr)`,
-          borderBottom: '1px solid #f1f5f9',
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `56px repeat(${FREQUENCIES.length}, 1fr)`, borderBottom: '1px solid #f1f5f9' }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, fontWeight: 700, color: earColor,
-            backgroundColor: earColor + '06', letterSpacing: '0.05em',
-            borderRight: '1px solid #e2e8f0',
+            fontSize: 10, fontWeight: 700, color: earColor, backgroundColor: earColor + '06', 
+            letterSpacing: '0.05em', borderRight: '1px solid #e2e8f0',
           }}>VA</div>
           {FREQUENCIES.map((_, colIdx) => renderCell(airRow, airRowIdx, colIdx, airData, earColor))}
         </div>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: `56px repeat(${FREQUENCIES.length}, 1fr)`,
-          borderBottom: '1px solid #e2e8f0',
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `56px repeat(${FREQUENCIES.length}, 1fr)`, borderBottom: '1px solid #e2e8f0' }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 10, fontWeight: 700, color: earColor,
-            backgroundColor: earColor + '06', letterSpacing: '0.05em',
-            borderRight: '1px solid #e2e8f0',
+            fontSize: 10, fontWeight: 700, color: earColor, backgroundColor: earColor + '06', 
+            letterSpacing: '0.05em', borderRight: '1px solid #e2e8f0',
           }}>VO</div>
           {FREQUENCIES.map((_, colIdx) => renderCell(boneRow, boneRowIdx, colIdx, boneData, earColor))}
         </div>
       </>
     );
   };
+
+  // 🔹 RENDERIZADORES PARA O GRID DE REFERÊNCIA (APENAS LEITURA) 🔹
+  const renderRefCell = (colIdx: number, data: Record<string, number> | null | undefined) => {
+    const freq = FREQUENCIES[colIdx];
+    const value = data ? data[freq] : undefined;
+    const hasValue = value !== undefined;
+    return (
+      <div
+        key={freq}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          height: 34, borderRight: colIdx < FREQUENCIES.length - 1 ? '1px dashed #e2e8f0' : 'none',
+          fontSize: 13, fontWeight: hasValue ? 700 : 400,
+          color: hasValue ? '#334155' : '#cbd5e1',
+          backgroundColor: 'transparent',
+          fontFamily: "'SF Mono', 'Cascadia Code', 'Consolas', monospace",
+        }}
+      >
+        {hasValue ? value : '--'}
+      </div>
+    );
+  };
+
+  const renderRefEarGrid = (
+    label: string, earColor: string,
+    airData: Record<string, number> | null | undefined,
+    boneData: Record<string, number> | null | undefined
+  ) => {
+    return (
+      <>
+        <div style={{ display: 'grid', gridTemplateColumns: `56px repeat(${FREQUENCIES.length}, 1fr)` }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontSize: 12, color: earColor, backgroundColor: earColor + '0A',
+            borderBottom: `2px dashed ${earColor}`, padding: '4px 0', opacity: 0.8
+          }}>{label}</div>
+          {FREQUENCIES.map((freq) => (
+            <div key={freq} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 600, color: '#94a3b8',
+              backgroundColor: '#f8fafc', borderLeft: '1px dashed #e2e8f0',
+              borderBottom: `2px dashed ${earColor}`, padding: '4px 0',
+              fontFamily: "'SF Mono', 'Cascadia Code', 'Consolas', monospace",
+            }}>{fmtFreq(freq)}</div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: `56px repeat(${FREQUENCIES.length}, 1fr)`, borderBottom: '1px dashed #f1f5f9', backgroundColor: '#f8fafc' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, fontWeight: 700, color: earColor, backgroundColor: earColor + '06',
+            letterSpacing: '0.05em', borderRight: '1px dashed #e2e8f0', opacity: 0.8
+          }}>VA</div>
+          {FREQUENCIES.map((_, colIdx) => renderRefCell(colIdx, airData))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: `56px repeat(${FREQUENCIES.length}, 1fr)`, borderBottom: '1px dashed #e2e8f0', backgroundColor: '#f8fafc' }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, fontWeight: 700, color: earColor, backgroundColor: earColor + '06',
+            letterSpacing: '0.05em', borderRight: '1px dashed #e2e8f0', opacity: 0.8
+          }}>VO</div>
+          {FREQUENCIES.map((_, colIdx) => renderRefCell(colIdx, boneData))}
+        </div>
+      </>
+    );
+  };
+
 
   if (loading) return <LoadingOverlay visible overlayProps={{ blur: 2 }} />;
 
@@ -521,14 +549,14 @@ export function NewExam() {
         </Grid.Col>
       </Grid>
 
-      {/* ══════════ GRID ESTILO AUDIÔMETRO ══════════ */}
+      {/* ══════════ GRID ESTILO AUDIÔMETRO (DIGITAÇÃO) ══════════ */}
       <Paper p="md" radius="lg" withBorder className="bg-white">
         <Group mb="sm" justify="space-between">
           <Group gap={8}>
             <ThemeIcon size="md" radius="md" color="gray" variant="light">
               <IconCalculator size={16} />
             </ThemeIcon>
-            <Text fw={700} size="sm" c="dark">Limiares (dB HL)</Text>
+            <Text fw={700} size="sm" c="dark">Limiares Atuais (dB HL)</Text>
           </Group>
           <Group gap={6}>
             <IconKeyboard size={14} className="text-slate-400" />
@@ -539,14 +567,29 @@ export function NewExam() {
           {renderEarGrid('OD', '#CC0000', odAir, odBone, 0, 1)}
           {renderEarGrid('OE', '#0044CC', oeAir, oeBone, 2, 3)}
         </div>
-        <div className="flex flex-wrap items-center gap-4 mt-3 px-1 text-[11px] text-slate-400">
-          <span><strong className="text-red-600">OD</strong> = Orelha Direita</span>
-          <span><strong className="text-blue-700">OE</strong> = Orelha Esquerda</span>
-          <span>VA = Via Aérea</span>
-          <span>VO = Via Óssea</span>
-          <span className="ml-auto">Valores arredondados para 5 dB · Range: -10 a 120</span>
-        </div>
       </Paper>
+
+      {/* ══════════ EXAME DE REFERÊNCIA (BASELINE) ══════════ */}
+      {refExam && (
+        <Paper p="md" radius="lg" withBorder className="bg-slate-50 border-dashed border-slate-300">
+          <Group mb="sm" justify="space-between">
+            <Group gap={8}>
+              <ThemeIcon size="md" radius="md" color="teal" variant="light">
+                <IconHistory size={16} />
+              </ThemeIcon>
+              <Text fw={700} size="sm" c="dark">Exame de Referência (Baseline)</Text>
+              <Badge size="xs" color="teal" variant="light" styles={{ label: { textTransform: 'none' } }}>
+                Realizado em {dayjs(refExam.exam_date).format('DD/MM/YYYY')}
+              </Badge>
+            </Group>
+            <Text size="xs" c="dimmed">Apenas visualização</Text>
+          </Group>
+          <div className="overflow-x-auto rounded-lg border border-slate-200 opacity-85" style={{ minWidth: 0 }}>
+            {renderRefEarGrid('OD', '#CC0000', refExam.thresholds_od_air, refExam.thresholds_od_bone)}
+            {renderRefEarGrid('OE', '#0044CC', refExam.thresholds_oe_air, refExam.thresholds_oe_bone)}
+          </div>
+        </Paper>
+      )}
 
       {/* ══════════ MODAL DE MOTIVO DA EDIÇÃO ══════════ */}
       <Modal

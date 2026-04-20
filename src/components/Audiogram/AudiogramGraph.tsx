@@ -16,6 +16,8 @@ interface Point {
 interface AudiogramGraphProps {
   airPoints: Point[];
   bonePoints: Point[];
+  refAirPoints?: Point[];  // <-- NOVO: Pontos de referência VA
+  refBonePoints?: Point[]; // <-- NOVO: Pontos de referência VO
   ear: 'right' | 'left';
   onPlot?: (freq: number, db: number) => void;
   readonly?: boolean;
@@ -24,6 +26,8 @@ interface AudiogramGraphProps {
 export function AudiogramGraph({
   airPoints,
   bonePoints,
+  refAirPoints = [],  // Padrão vazio se não tiver referência
+  refBonePoints = [], // Padrão vazio se não tiver referência
   ear,
   onPlot,
   readonly = false,
@@ -99,6 +103,18 @@ export function AudiogramGraph({
   // --- LINHA DA VIA ÓSSEA ---
   const sortedBone = [...bonePoints].sort((a, b) => a.freq - b.freq);
   const pathBone = sortedBone
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.freq)} ${getY(p.db)}`)
+    .join(' ');
+
+  // --- LINHA DE REFERÊNCIA (VIA AÉREA ANTIGA) ---
+  const sortedRefAir = [...refAirPoints].sort((a, b) => a.freq - b.freq);
+  const pathRefAir = sortedRefAir
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.freq)} ${getY(p.db)}`)
+    .join(' ');
+
+  // --- LINHA DE REFERÊNCIA (VIA ÓSSEA ANTIGA) ---
+  const sortedRefBone = [...refBonePoints].sort((a, b) => a.freq - b.freq);
+  const pathRefBone = sortedRefBone
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${getX(p.freq)} ${getY(p.db)}`)
     .join(' ');
 
@@ -232,60 +248,12 @@ export function AudiogramGraph({
         ))}
 
         {/* === FAIXAS DE CLASSIFICAÇÃO (cores de fundo sutis) === */}
-        {/* Normal: -10 a 25 */}
-        <rect
-          x={padding.left}
-          y={getY(-10)}
-          width={graphWidth}
-          height={getY(25) - getY(-10)}
-          fill="#e8f5e9"
-          opacity={0.3}
-        />
-        {/* Leve: 26 a 40 */}
-        <rect
-          x={padding.left}
-          y={getY(25)}
-          width={graphWidth}
-          height={getY(40) - getY(25)}
-          fill="#fff9c4"
-          opacity={0.25}
-        />
-        {/* Moderada: 41 a 55 */}
-        <rect
-          x={padding.left}
-          y={getY(40)}
-          width={graphWidth}
-          height={getY(55) - getY(40)}
-          fill="#ffe0b2"
-          opacity={0.25}
-        />
-        {/* Moderadamente Severa: 56 a 70 */}
-        <rect
-          x={padding.left}
-          y={getY(55)}
-          width={graphWidth}
-          height={getY(70) - getY(55)}
-          fill="#ffccbc"
-          opacity={0.25}
-        />
-        {/* Severa: 71 a 90 */}
-        <rect
-          x={padding.left}
-          y={getY(70)}
-          width={graphWidth}
-          height={getY(90) - getY(70)}
-          fill="#ef9a9a"
-          opacity={0.2}
-        />
-        {/* Profunda: 91+ */}
-        <rect
-          x={padding.left}
-          y={getY(90)}
-          width={graphWidth}
-          height={getY(120) - getY(90)}
-          fill="#e57373"
-          opacity={0.15}
-        />
+        <rect x={padding.left} y={getY(-10)} width={graphWidth} height={getY(25) - getY(-10)} fill="#e8f5e9" opacity={0.3} />
+        <rect x={padding.left} y={getY(25)} width={graphWidth} height={getY(40) - getY(25)} fill="#fff9c4" opacity={0.25} />
+        <rect x={padding.left} y={getY(40)} width={graphWidth} height={getY(55) - getY(40)} fill="#ffe0b2" opacity={0.25} />
+        <rect x={padding.left} y={getY(55)} width={graphWidth} height={getY(70) - getY(55)} fill="#ffccbc" opacity={0.25} />
+        <rect x={padding.left} y={getY(70)} width={graphWidth} height={getY(90) - getY(70)} fill="#ef9a9a" opacity={0.2} />
+        <rect x={padding.left} y={getY(90)} width={graphWidth} height={getY(120) - getY(90)} fill="#e57373" opacity={0.15} />
 
         {/* Rótulos de classificação na lateral direita */}
         {[
@@ -310,6 +278,73 @@ export function AudiogramGraph({
           </text>
         ))}
 
+        {/* ========================================================= */}
+        {/* === CAMADA 0: REFERÊNCIA (GHOST LINES) ================== */}
+        {/* ========================================================= */}
+        
+        {/* Ghost Line - Via Aérea */}
+        {refAirPoints.length > 0 && (
+          <g opacity={0.35} style={{ pointerEvents: 'none' }}>
+            {sortedRefAir.length > 1 && (
+              <path
+                d={pathRefAir}
+                fill="none"
+                stroke={color}
+                strokeWidth="2"
+                strokeDasharray="6 4"
+                strokeLinejoin="round"
+              />
+            )}
+            {refAirPoints.map((p) => (
+              <g key={`ref-air-${p.freq}`}>
+                {ear === 'right' ? (
+                  <circle cx={getX(p.freq)} cy={getY(p.db)} r={6} stroke={color} strokeWidth="2" fill="white" />
+                ) : (
+                  <g>
+                    <line x1={getX(p.freq) - 5} y1={getY(p.db) - 5} x2={getX(p.freq) + 5} y2={getY(p.db) + 5} stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+                    <line x1={getX(p.freq) + 5} y1={getY(p.db) - 5} x2={getX(p.freq) - 5} y2={getY(p.db) + 5} stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+                  </g>
+                )}
+              </g>
+            ))}
+          </g>
+        )}
+
+        {/* Ghost Line - Via Óssea */}
+        {refBonePoints.length > 0 && (
+          <g opacity={0.35} style={{ pointerEvents: 'none' }}>
+            {sortedRefBone.length > 1 && (
+              <path
+                d={pathRefBone}
+                fill="none"
+                stroke={lineColor}
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+                strokeLinejoin="round"
+              />
+            )}
+            {refBonePoints.map((p) => (
+              <g key={`ref-bone-${p.freq}`}>
+                {ear === 'right' ? (
+                  <g>
+                    <line x1={getX(p.freq) + 3} y1={getY(p.db) - 6} x2={getX(p.freq) - 5} y2={getY(p.db)} stroke={color} strokeWidth="2" strokeLinecap="round" />
+                    <line x1={getX(p.freq) - 5} y1={getY(p.db)} x2={getX(p.freq) + 3} y2={getY(p.db) + 6} stroke={color} strokeWidth="2" strokeLinecap="round" />
+                  </g>
+                ) : (
+                  <g>
+                    <line x1={getX(p.freq) - 3} y1={getY(p.db) - 6} x2={getX(p.freq) + 5} y2={getY(p.db)} stroke={color} strokeWidth="2" strokeLinecap="round" />
+                    <line x1={getX(p.freq) + 5} y1={getY(p.db)} x2={getX(p.freq) - 3} y2={getY(p.db) + 6} stroke={color} strokeWidth="2" strokeLinecap="round" />
+                  </g>
+                )}
+              </g>
+            ))}
+          </g>
+        )}
+
+        {/* ========================================================= */}
+        {/* === CAMADA 1: LINHAS ATUAIS ============================= */}
+        {/* ========================================================= */}
+
         {/* === LINHA DA VIA ÓSSEA === */}
         {sortedBone.length > 1 && (
           <path
@@ -332,6 +367,10 @@ export function AudiogramGraph({
             strokeLinejoin="round"
           />
         )}
+
+        {/* ========================================================= */}
+        {/* === CAMADA 2: PONTOS ATUAIS ============================= */}
+        {/* ========================================================= */}
 
         {/* === PONTOS VIA AÉREA === */}
         {airPoints.map((p) => (
